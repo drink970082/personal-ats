@@ -1,0 +1,5 @@
+.cursor
+*.db
+*.tar
+__pycache__
+logs/
