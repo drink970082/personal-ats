@@ -93,7 +93,7 @@ def generate_dummy_data():
                                 "timestamp": last_date + timedelta(days=random.randint(1, 5)),
                             }
                         )
-                        break
+                break
 
                 # If not rejected, chance for an offer
                 if current_status != "Rejected" and random.random() > 0.5:
@@ -641,11 +641,11 @@ def create_application_table(dataframe, statuses):
                                             className=f"status-indicator status-{row['status'].lower().replace(' ', '-').split(':')[0]}"
                                         ),
                                         dbc.Select(
-                                            options=[{"label": s, "value": s} for s in statuses],
-                                            value=row["status"],
-                                            style={"width": "150px"},
-                                            className="table-dropdown",
-                                        ),
+                                        options=[{"label": s, "value": s} for s in statuses],
+                                        value=row["status"],
+                                        style={"width": "150px"},
+                                        className="table-dropdown",
+                                    ),
                                     ],
                                     className="status-cell",
                                 )
