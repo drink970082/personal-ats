@@ -1,6 +1,8 @@
 """CSS styling for the application."""
 
-CUSTOM_CSS = """
+def get_custom_css():
+    """Return the custom CSS for the application - EXACTLY matching original app.py."""
+    return """
 <!DOCTYPE html>
 <html>
     <head>
@@ -251,33 +253,13 @@ CUSTOM_CSS = """
             
             /* --- In-Table Controls --- */
             .table-dropdown {
-                font-size: 13px !important;
+                font-size: 14px !important;
                 height: 34px !important;
+                width: 85% !important;
                 min-height: 34px !important;
                 padding-top: 0.35rem !important;
                 padding-bottom: 0.35rem !important;
             }
-            
-            /* --- Notes Textarea --- */
-            .notes-textarea {
-                min-height: 40px !important;
-                resize: none !important;
-                scrollbar-width: thin;
-                scrollbar-color: var(--md-sys-color-outline-variant) transparent;
-            }
-
-            /* --- Custom Scrollbar for Webkit Browsers --- */
-            .notes-textarea::-webkit-scrollbar {
-                width: 8px;
-            }
-            .notes-textarea::-webkit-scrollbar-track {
-                background: transparent;
-            }
-            .notes-textarea::-webkit-scrollbar-thumb {
-                background-color: var(--md-sys-color-outline-variant);
-                border-radius: 4px;
-            }
-            
             /* --- Form Textarea --- */
             .form-notes-textarea {
                 min-height: 80px !important;

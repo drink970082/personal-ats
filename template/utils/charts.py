@@ -364,10 +364,9 @@ def create_status_distribution(applications_data):
     return fig
 
 
-def create_sankey_chart(applications_data, status_history_data):
-    """Create a Sankey diagram showing status flow."""
-    if not applications_data or not status_history_data:
-        # Return empty figure if no data
+def create_sankey_chart(sankey_data):
+    """Create a Sankey diagram showing status flow using pre-computed transitions - EXACTLY matching original app.py."""
+    if not sankey_data:
         fig = go.Figure()
         fig.update_layout(
             title="Application Status Flow - No Data",
@@ -378,33 +377,12 @@ def create_sankey_chart(applications_data, status_history_data):
         )
         return fig
     
-    # Convert to DataFrames
-    apps_df = pd.DataFrame(applications_data)
-    history_df = pd.DataFrame(status_history_data)
+    import pandas as pd
     
-    # Create status transitions
-    transitions = []
+    # Convert to DataFrame
+    df_sankey = pd.DataFrame(sankey_data)
     
-    for app_id in apps_df['id']:
-        app_history = history_df[history_df['application_id'] == app_id].sort_values('timestamp')
-        
-        if len(app_history) <= 1:
-            # Only "Applied" status - add "No Response" as destination
-            transitions.append(('Applied', 'No Response'))
-        else:
-            # Add transitions between consecutive statuses
-            statuses = app_history['status'].tolist()
-            for i in range(len(statuses) - 1):
-                transitions.append((statuses[i], statuses[i + 1]))
-    
-    # Count transitions
-    transition_counts = {}
-    for source, target in transitions:
-        key = (source, target)
-        transition_counts[key] = transition_counts.get(key, 0) + 1
-    
-    if not transition_counts:
-        # Return empty figure if no transitions
+    if df_sankey.empty:
         fig = go.Figure()
         fig.update_layout(
             title="Application Status Flow - No Transitions",
@@ -415,63 +393,30 @@ def create_sankey_chart(applications_data, status_history_data):
         )
         return fig
     
-    # Extract unique nodes
-    all_statuses = set()
-    for source, target in transition_counts.keys():
-        all_statuses.add(source)
-        all_statuses.add(target)
-    
-    status_list = sorted(list(all_statuses))
-    status_to_idx = {status: idx for idx, status in enumerate(status_list)}
-    
-    # Prepare Sankey data
-    source_indices = []
-    target_indices = []
-    values = []
-    
-    for (source, target), count in transition_counts.items():
-        source_indices.append(status_to_idx[source])
-        target_indices.append(status_to_idx[target])
-        values.append(count)
-    
-    # Define colors for nodes
-    node_colors = []
-    for status in status_list:
-        if status == "Applied":
-            node_colors.append('#5d8eff')
-        elif status == "Online Assessment":
-            node_colors.append('#f29e4c')
-        elif "Interviewing" in status:
-            node_colors.append('#f76f8e')
-        elif status == "Offer":
-            node_colors.append('#54c184')
-        elif status == "Rejected" or status == "No Response":
-            node_colors.append('#909da2')
-        else:
-            node_colors.append('#a8c7fa')
-    
-    fig = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=15,
-            thickness=20,
-            line=dict(color="rgba(0,0,0,0)", width=0.5),
-            label=status_list,
-            color=node_colors
-        ),
-        link=dict(
-            source=source_indices,
-            target=target_indices,
-            value=values,
-            color='rgba(168, 199, 250, 0.3)'
+    # Use original Sankey logic exactly
+    all_nodes = list(pd.unique(df_sankey[["status", "next_status"]].values.ravel("K")))
+    if "No Response" not in all_nodes:
+        all_nodes.append("No Response")
+    node_map = {node: i for i, node in enumerate(all_nodes)}
+
+    fig = go.Figure(
+        go.Sankey(
+            arrangement="snap",
+            node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=all_nodes, color="#a8c7fa"),
+            link=dict(
+                source=df_sankey["status"].map(node_map),
+                target=df_sankey["next_status"].map(node_map),
+                value=df_sankey["value"],
+                color="rgba(168, 199, 250, 0.6)",
+            ),
         )
-    )])
-    
+    )
     fig.update_layout(
-        title="Application Status Flow",
+        title_text="Application Status Flow", 
+        font_size=10,
         height=500,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#e2e2e6', size=12)
+        font_color='#e2e2e6'
     )
-    
     return fig 

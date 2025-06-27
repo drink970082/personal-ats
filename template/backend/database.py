@@ -191,6 +191,15 @@ class DatabaseManager:
             ''', (app_id,)).fetchall()
             return [dict(row) for row in rows]
     
+    def get_all_status_history(self) -> List[Dict[str, Any]]:
+        """Get all status history for all applications (for Sankey chart)."""
+        with self.get_connection() as conn:
+            rows = conn.execute('''
+                SELECT * FROM status_history 
+                ORDER BY application_id, timestamp
+            ''').fetchall()
+            return [dict(row) for row in rows]
+    
     def update_status_history(self, history_id: int, status: str) -> Dict[str, Any]:
         """Update a status history entry."""
         try:
@@ -210,16 +219,58 @@ class DatabaseManager:
             return {"success": False, "error": str(e)}
     
     def delete_status_history(self, history_id: int) -> Dict[str, Any]:
-        """Delete a status history entry."""
+        """Delete a status history entry and auto-delete application if no status remains."""
         try:
             with self.get_connection() as conn:
+                # Get the application_id before deleting
+                history_entry = conn.execute(
+                    "SELECT application_id FROM status_history WHERE id = ?", 
+                    (history_id,)
+                ).fetchone()
+                
+                if not history_entry:
+                    return {"success": False, "error": "History entry not found"}
+                
+                app_id = history_entry['application_id']
+                
+                # Delete the status history entry
                 cursor = conn.execute("DELETE FROM status_history WHERE id = ?", (history_id,))
                 
                 if cursor.rowcount == 0:
                     return {"success": False, "error": "History entry not found"}
                 
+                # Check if this application has any remaining status history
+                remaining_history = conn.execute(
+                    "SELECT COUNT(*) as count FROM status_history WHERE application_id = ?",
+                    (app_id,)
+                ).fetchone()
+                
+                if remaining_history['count'] == 0:
+                    # No status history remains, delete the application
+                    conn.execute("DELETE FROM applications WHERE id = ?", (app_id,))
+                    conn.commit()
+                    return {
+                        "success": True, 
+                        "message": "Status deleted. Application auto-deleted since no status history remains.",
+                        "application_deleted": True
+                    }
+                else:
+                    # Update application status to most recent status in history
+                    latest_status = conn.execute('''
+                        SELECT status FROM status_history 
+                        WHERE application_id = ? 
+                        ORDER BY timestamp DESC 
+                        LIMIT 1
+                    ''', (app_id,)).fetchone()
+                    
+                    if latest_status:
+                        conn.execute(
+                            "UPDATE applications SET status = ?, last_updated = ? WHERE id = ?",
+                            (latest_status['status'], datetime.now().isoformat(), app_id)
+                        )
+                
                 conn.commit()
-                return {"success": True}
+                return {"success": True, "message": "Status history entry deleted successfully"}
                 
         except Exception as e:
             return {"success": False, "error": str(e)}

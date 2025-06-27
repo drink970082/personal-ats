@@ -2,29 +2,46 @@
 
 import dash_bootstrap_components as dbc
 from dash import dcc, html, dash_table
-from config.constants import STATUSES
+from config.constants import STATUSES, CATEGORIES
 from utils.data import get_status_color_class
 
 
-def create_applications_table(applications_data, page_size=10, page_current=0):
-    """Create the main applications table with interactive controls."""
-    if not applications_data:
-        return html.Div([
-            html.P("No applications found. Add your first application using the form above!", 
-                   className="text-center py-4", style={'color': '#c2c7ce'})
-        ], className="card-component")
+def create_applications_table(applications_data, page_size=10, page_current=0, filters=None):
+    """Create the main applications table with pagination (filters are now in main layout)."""
     
-    # Sort by date applied (most recent first)
-    sorted_data = sorted(applications_data, key=lambda x: x['date_applied'], reverse=True)
+    # Apply filters to the data
+    filtered_data = applications_data
+    if filters:
+        if filters.get('status') and filters['status'] != 'all':
+            filtered_data = [app for app in filtered_data if app['status'] == filters['status']]
+        if filters.get('category') and filters['category'] != 'all':
+            filtered_data = [app for app in filtered_data if app.get('category', 'Others') == filters['category']]
+        if filters.get('search'):
+            search_term = filters['search'].lower().strip()
+            filtered_data = [app for app in filtered_data if 
+                           search_term in app['company_name'].lower() or 
+                           search_term in app['job_title'].lower()]
     
-    # Pagination
+    # Calculate pagination
+    total_items = len(filtered_data)
+    total_pages = max(1, (total_items + page_size - 1) // page_size) if total_items > 0 else 1
+    page_current = min(page_current, total_pages - 1)  # Ensure current page is valid
+    page_current = max(0, page_current)  # Ensure non-negative
+    
+    # Paginate data
     start_idx = page_current * page_size
     end_idx = start_idx + page_size
-    page_data = sorted_data[start_idx:end_idx]
+    page_data = sorted(filtered_data, key=lambda x: x['date_applied'], reverse=True)[start_idx:end_idx]
+    
+    if not page_data:
+        return html.Div([
+            html.P("No applications found. Try adjusting your filters or add your first application!", 
+                   className="text-center py-4", style={'color': '#c2c7ce'})
+        ])
     
     # Create table rows
     table_rows = []
-    for i, app in enumerate(page_data):
+    for app in page_data:
         # Status indicator
         status_class = get_status_color_class(app['status'])
         status_cell = html.Div([
@@ -38,11 +55,11 @@ def create_applications_table(applications_data, page_size=10, page_current=0):
             )
         ], className="status-cell")
         
-        # Notes cell with plain text (not editable in table)
+        # Notes cell
         notes_cell = html.Div(
             app['notes'][:50] + '...' if len(app['notes']) > 50 else app['notes'],
             style={'color': '#c2c7ce', 'font-size': '13px'},
-            title=app['notes']  # Show full text on hover
+            title=app['notes']
         )
         
         # Action buttons
@@ -67,6 +84,7 @@ def create_applications_table(applications_data, page_size=10, page_current=0):
             html.Td(app['date_applied'], style={'font-size': '13px', 'min-width': '100px'}),
             html.Td(app['company_name'], style={'font-weight': '500', 'font-size': '14px'}),
             html.Td(app['job_title'], style={'font-size': '13px'}),
+            html.Td(app.get('category', 'Others'), style={'font-size': '13px', 'min-width': '100px'}),
             html.Td(status_cell, style={'min-width': '180px'}),
             html.Td(notes_cell, style={'max-width': '200px'}),
             html.Td(actions_cell, style={'min-width': '140px'})
@@ -79,6 +97,7 @@ def create_applications_table(applications_data, page_size=10, page_current=0):
             html.Th("TIME", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
             html.Th("COMPANY", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
             html.Th("TITLE", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
+            html.Th("CATEGORY", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
             html.Th("STATUS", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
             html.Th("NOTES", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'}),
             html.Th("ACTIONS", style={'font-size': '12px', 'font-weight': '600', 'color': '#c2c7ce'})
@@ -86,13 +105,9 @@ def create_applications_table(applications_data, page_size=10, page_current=0):
     ])
     
     # Create pagination controls
-    total_pages = (len(sorted_data) + page_size - 1) // page_size
-    pagination = create_pagination_controls(page_current, total_pages, page_size, len(sorted_data))
+    pagination = create_pagination_controls(page_current, total_pages, page_size, len(applications_data), filtered_items=total_items)
     
     return html.Div([
-        # Filter/Search row
-        create_table_filters(),
-        
         # Table
         html.Div([
             html.Table([
@@ -103,144 +118,150 @@ def create_applications_table(applications_data, page_size=10, page_current=0):
         
         # Pagination
         pagination
-    ], className="card-component")
+    ])
 
 
-def create_table_filters():
-    """Create filter and search controls for the table."""
-    return dbc.Row([
-        dbc.Col([
-            dbc.InputGroup([
-                dbc.Input(
-                    id="search-input",
-                    placeholder="Search companies, titles, or notes...",
-                    type="text",
-                    style={'font-size': '14px'}
+def create_filter_search_row():
+    """Create the filter and search row - EXACTLY matching original app.py."""
+    return html.Div(
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        dbc.Select(
+                            id="status-filter",
+                            options=[{"label": "All Statuses", "value": "all"}]
+                            + [{"label": s, "value": s} for s in STATUSES],
+                            value="all",
+                            placeholder="Filter by status...",
+                        ),
+                    ],
+                    md=4,
                 ),
-                dbc.Button(
-                    "Clear",
-                    id="clear-search-button",
-                    outline=True,
-                    color="secondary",
-                    style={'font-size': '13px'}
-                )
-            ], size="sm")
-        ], md=6),
-        dbc.Col([
-            dbc.Select(
-                id="status-filter",
-                options=[
-                    {"label": "All Statuses", "value": "all"}
-                ] + [{"label": status, "value": status} for status in STATUSES],
-                value="all",
-                style={'font-size': '14px'}
-            )
-        ], md=3),
-        dbc.Col([
-            dbc.Select(
-                id="category-filter",
-                options=[
-                    {"label": "All Categories", "value": "all"},
-                    {"label": "SWE", "value": "SWE"},
-                    {"label": "MLE", "value": "MLE"},
-                    {"label": "DS", "value": "DS"},
-                    {"label": "DA", "value": "DA"},
-                    {"label": "Quant Dev", "value": "Quant Dev"},
-                    {"label": "Quant Analyst", "value": "Quant Analyst"},
-                    {"label": "Quant Trader", "value": "Quant Trader"},
-                    {"label": "AI Engineer", "value": "AI Engineer"},
-                    {"label": "Others", "value": "Others"}
-                ],
-                value="all",
-                style={'font-size': '14px'}
-            )
-        ], md=3)
-    ], className="filter-search-row align-items-end")
+                dbc.Col(
+                    [
+                        dbc.Select(
+                            id="category-filter",
+                            options=[{"label": "All Categories", "value": "all"}]
+                            + [{"label": c, "value": c} for c in CATEGORIES],
+                            value="all",
+                            placeholder="Filter by category...",
+                        ),
+                    ],
+                    md=4,
+                ),
+                dbc.Col(
+                    [
+                        dbc.Input(
+                            id="search-input",
+                            placeholder="Search...",
+                            debounce=True,
+                        ),
+                    ],
+                    md=4,
+                ),
+            ],
+            style={"padding": "1rem 1rem"},
+        )
+    )
 
 
-def create_pagination_controls(current_page, total_pages, page_size, total_items):
-    """Create pagination controls for the table."""
+def create_pagination_controls(current_page, total_pages, page_size, total_items, filtered_items=None):
+    """Create dynamic pagination controls."""
     if total_pages <= 1:
         return html.Div()
     
-    # Page size selector
-    page_size_options = [
-        {"label": "10", "value": 10},
-        {"label": "25", "value": 25},
-        {"label": "50", "value": 50},
-        {"label": "100", "value": 100}
-    ]
+    # Use filtered items if provided, otherwise use total items
+    display_items = filtered_items if filtered_items is not None else total_items
     
-    # Page buttons
+    # Calculate display range
+    start_item = current_page * page_size + 1
+    end_item = min((current_page + 1) * page_size, display_items)
+    
+    # Create page buttons (show up to 5 pages around current)
     page_buttons = []
     
     # Previous button
+    prev_disabled = current_page == 0
     page_buttons.append(
         dbc.Button(
-            "‹",
-            id="prev-page-button",
-            className="pagination-btn me-1",
-            disabled=current_page == 0,
-            style={'min-width': '32px'}
+            "‹", 
+            id="table-prev-page-button", 
+            className=f"pagination-btn {'disabled' if prev_disabled else ''}", 
+            disabled=prev_disabled,
+            size="sm"
         )
     )
     
-    # Page number buttons (show max 5 pages around current)
+    # Page number buttons
     start_page = max(0, current_page - 2)
     end_page = min(total_pages, start_page + 5)
-    start_page = max(0, end_page - 5)
     
-    for page in range(start_page, end_page):
-        is_current = page == current_page
+    # Adjust start if we're near the end
+    if end_page - start_page < 5:
+        start_page = max(0, end_page - 5)
+    
+    for page_num in range(start_page, end_page):
+        is_current = page_num == current_page
         page_buttons.append(
             dbc.Button(
-                str(page + 1),
-                id={"type": "page-button", "index": page},
-                className="pagination-btn-active me-1" if is_current else "pagination-btn me-1",
-                style={'min-width': '32px'}
+                str(page_num + 1),
+                id={"type": "table-page-button", "index": page_num},
+                className=f"pagination-btn{'-active' if is_current else ''} me-1",
+                size="sm"
             )
         )
     
     # Next button
+    next_disabled = current_page >= total_pages - 1
     page_buttons.append(
         dbc.Button(
-            "›",
-            id="next-page-button",
-            className="pagination-btn",
-            disabled=current_page >= total_pages - 1,
-            style={'min-width': '32px'}
+            "›", 
+            id="table-next-page-button", 
+            className=f"pagination-btn {'disabled' if next_disabled else ''}", 
+            disabled=next_disabled,
+            size="sm"
         )
     )
     
-    # Info text
-    start_item = current_page * page_size + 1
-    end_item = min((current_page + 1) * page_size, total_items)
-    info_text = f"Showing {start_item}-{end_item} of {total_items} applications"
-    
-    return dbc.Row([
-        dbc.Col([
-            html.Div([
-                html.Span("Items per page: ", style={'font-size': '0.875rem', 'color': '#c2c7ce'}),
-                dbc.Select(
-                    id="page-size-select",
-                    options=page_size_options,
-                    value=page_size,
-                    className="pagination-select d-inline-block",
-                    style={'width': '70px', 'display': 'inline-block'}
-                )
-            ], className="d-flex align-items-center")
-        ], md=4),
-        dbc.Col([
-            html.Div(page_buttons, className="d-flex justify-content-center")
-        ], md=4),
-        dbc.Col([
-            html.Div(
-                info_text,
-                className="text-end",
-                style={'font-size': '0.875rem', 'color': '#c2c7ce'}
-            )
-        ], md=4)
-    ], className="mt-3 pt-3", style={'border-top': '1px solid var(--md-sys-color-outline-variant)'})
+    return dbc.Row(
+        [
+            dbc.Col(
+                html.Div(
+                    [
+                        html.Span("Show ", className="small text-secondary me-1"),
+                        dbc.Select(
+                            id="table-page-size-select",
+                            options=[
+                                {"label": "10", "value": 10},
+                                {"label": "25", "value": 25},
+                                {"label": "50", "value": 50},
+                            ],
+                            value=page_size,
+                            style={"width": "70px", "display": "inline-block"},
+                            className="pagination-select",
+                        ),
+                        html.Span(" entries", className="small text-secondary ms-1"),
+                    ],
+                    className="d-flex align-items-center",
+                ),
+                width="auto",
+            ),
+            dbc.Col(
+                f"Showing {start_item}-{end_item} of {display_items}" + 
+                (f" (filtered from {total_items})" if filtered_items != total_items else ""), 
+                className="small text-secondary d-flex align-items-center"
+            ),
+            dbc.Col(
+                html.Div(page_buttons, className="d-flex gap-1"),
+                width="auto",
+                className="ms-auto",
+            ),
+        ],
+        align="center",
+        className="mt-2",
+        style={"padding": "0rem 1rem 1rem 1rem"},
+    )
 
 
 def create_status_history_table(history_data, app_id):
@@ -254,16 +275,19 @@ def create_status_history_table(history_data, app_id):
     
     table_rows = []
     for i, entry in enumerate(app_history):
-        # Format timestamp
-        timestamp = entry['timestamp']
-        if len(timestamp) > 10:  # Has time component
-            date_part = timestamp.split(' ')[0]
-        else:
-            date_part = timestamp
+        # Use formatted timestamp if available, otherwise fallback to basic format
+        display_time = entry.get('timestamp_formatted', entry['timestamp'])
+        if not display_time or display_time == entry['timestamp']:
+            # Fallback formatting if timestamp_formatted is not available
+            timestamp = entry['timestamp']
+            if len(timestamp) > 10:  # Has time component
+                display_time = timestamp.split(' ')[0]
+            else:
+                display_time = timestamp
         
         row = html.Tr([
             html.Td(entry['status'], style={'font-weight': '500'}),
-            html.Td(date_part),
+            html.Td(display_time, style={'font-size': '13px'}),
             html.Td([
                 dbc.Button(
                     "Delete",
