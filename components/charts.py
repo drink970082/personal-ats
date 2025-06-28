@@ -1,55 +1,61 @@
+"""Chart components for the dashboard."""
+
 import dash_bootstrap_components as dbc
 from dash import dcc, html
+from utils.charts import create_timeline_heatmap, create_category_donut, create_sankey_chart, create_status_distribution
 
-def get_charts_container():
-    """Charts container with all visualization components"""
-    return [
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        dbc.Card(
-                            [
-                                dbc.CardHeader("Status Flow"),
-                                dbc.CardBody([dcc.Graph(id="status-chart")]),
-                            ]
-                        )
-                    ],
-                    md=12,
-                    className="mb-4",
-                ),
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        dbc.Card(
-                            [
-                                dbc.CardHeader("Category Distribution"),
-                                dbc.CardBody([dcc.Graph(id="category-chart")]),
-                            ]
-                        )
-                    ],
-                    md=12,
-                    className="mb-4",
-                ),
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        dbc.Card(
-                            [
-                                dbc.CardHeader("Application Heatmap (Last 365 Days)"),
-                                dbc.CardBody([dcc.Graph(id="timeline-chart")]),
-                            ]
-                        )
-                    ],
-                    md=12,
-                    className="mb-4",
-                ),
-            ]
-        ),
-    ] 
+
+def create_charts_section(applications_data, sankey_data):
+    """Create the charts section with three-row layout for better chart proportions."""
+    return html.Div([
+        # Row 1: Sankey Chart (Full Width)
+        dbc.Row([
+            dbc.Col([
+    
+                dcc.Graph(
+                    figure=create_sankey_chart(sankey_data),
+                    config={'displayModeBar': False},
+                    style={'height': '400px'}
+                )
+            ], md=12)
+        ], className="mb-4"),
+        
+        # Row 2: Timeline Heatmap (Full Width)
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_timeline_heatmap(applications_data),
+                    config={'displayModeBar': False}
+                )
+            ], md=12)
+        ], className="mb-4"),
+        
+        # Row 3: Category Donut + Status Distribution (Side by Side)
+        dbc.Row([
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_category_donut(applications_data),
+                    config={'displayModeBar': False},
+                    style={'height': '400px'}
+                )
+            ], md=6),
+            dbc.Col([
+                dcc.Graph(
+                    figure=create_status_distribution(applications_data),
+                    config={'displayModeBar': False},
+                    style={'height': '400px'}
+                )
+            ], md=6)
+        ], className="mb-3")
+    ])
+
+
+def create_empty_charts():
+    """Create empty charts when no data is available."""
+    return html.Div([
+        html.P(
+            "Charts will appear here once you add some applications.",
+            className="text-center py-5",
+            style={'color': '#c2c7ce'}
+        )
+    ]) 

@@ -1,131 +1,361 @@
+/* --- Material 3 Dark Theme Color Palette --- */
 :root {
-    --bg-primary: #1e1e1e;
-    --bg-secondary: #252526;
-    --bg-tertiary: #2d2d30;
-    --border-color: #3c3c3c;
-    --text-primary: #cccccc;
-    --text-secondary: #969696;
-    --accent-blue: #007acc;
+    --md-sys-color-primary-rgb: 168, 199, 250;
+    --md-sys-color-primary: #a8c7fa;
+    --md-sys-color-on-primary: #0d3058;
+    --md-sys-color-surface-container: #212429;
+    --md-sys-color-surface-container-high: #2c2f33;
+    --md-sys-color-surface-container-highest: #373a3e;
+    --md-sys-color-surface: #131416;
+    --md-sys-color-on-surface: #e2e2e6;
+    --md-sys-color-on-surface-variant: #c2c7ce;
+    --md-sys-color-outline: #8c9199;
+    --md-sys-color-outline-variant: #42474e;
+    --md-sys-color-error: #f2b8b5;
 }
+
+/* --- Base Styles --- */
 body {
-    background-color: var(--bg-primary) !important;
-    color: var(--text-primary) !important;
-    font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    background-color: var(--md-sys-color-surface) !important;
+    color: var(--md-sys-color-on-surface) !important;
+    font-family: 'Roboto', sans-serif;
     font-size: 14px;
 }
-.fade-in {
-    animation: fadeIn 0.4s ease-in-out;
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    color: var(--md-sys-color-on-surface) !important;
+}
+.fade-in { 
+    animation: fadeIn 0.4s ease-in-out; 
 }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.form-control::placeholder {
-    color: var(--text-secondary) !important;
-    opacity: 0.7;
-}
-.form-control:-ms-input-placeholder {
-    color: var(--text-secondary) !important;
-}
-.form-control::-ms-input-placeholder {
-    color: var(--text-secondary) !important;
-}
-.stats-card {
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 1rem;
-    transition: background-color 0.2s ease;
-}
-.stats-card:hover {
-    background-color: var(--bg-tertiary);
-}
-.stat-number {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--accent-blue);
-}
-.stat-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
+
+/* --- Component Containers --- */
 .card-component {
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    background-color: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
     padding: 1.25rem;
 }
-.form-control, .form-select, .btn {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+/* --- Form Controls --- */
+.form-control, .form-select, .Select-control {
+    background-color: var(--md-sys-color-surface-container-highest) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    border-radius: 4px !important;
+    color: var(--md-sys-color-on-surface) !important;
+    padding: 0.5rem 0.75rem !important;
+    transition: all 0.2s ease-in-out !important;
+    height: 38px !important;
+    min-height: 38px !important;
 }
-.form-control, .form-select {
-    background-color: var(--bg-tertiary) !important;
-    border: 1px solid var(--border-color) !important;
-    color: var(--text-primary) !important;
-    font-size: 14px;
+.form-control:focus, .form-select:focus, .Select-control:focus-within {
+    box-shadow: 0 0 0 1px var(--md-sys-color-primary) !important;
+    border-color: var(--md-sys-color-primary) !important;
+    background-color: var(--md-sys-color-surface-container-highest) !important;
 }
-.form-control:focus, .form-select:focus {
-    box-shadow: 0 0 0 2px var(--accent-blue) !important;
-    border-color: var(--accent-blue) !important;
+.form-control::placeholder { 
+    color: var(--md-sys-color-on-surface-variant) !important; 
+    opacity: 1; 
 }
+.Select-input input { color: var(--md-sys-color-on-surface) !important; }
+.Select-value-label, .Select-placeholder { 
+    color: var(--md-sys-color-on-surface-variant) !important; 
+}
+.Select-menu-outer {
+    background-color: var(--md-sys-color-surface-container-highest) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    border-radius: 4px !important;
+}
+.Select-option {
+    background-color: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
+}
+.Select-option.is-focused {
+    background-color: var(--md-sys-color-primary) !important;
+    color: var(--md-sys-color-on-primary) !important;
+}
+
+/* --- Button Styles --- */
 .btn-primary {
-    background-color: var(--accent-blue) !important;
-    border-color: var(--accent-blue) !important;
-    font-size: 14px;
+    background-color: var(--md-sys-color-primary) !important;
+    color: var(--md-sys-color-on-primary) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+}
+.btn-m3-outline {
+    background-color: transparent !important;
+    border: 1px solid var(--md-sys-color-outline) !important;
+    color: var(--md-sys-color-primary) !important;
+    border-radius: 20px !important;
+    font-weight: 500;
+    padding: 0.4rem 1rem;
+    font-size: 13px;
+    line-height: 1.5;
     transition: background-color 0.2s ease;
 }
-.btn-primary:hover {
-    background-color: #005a9e !important;
+.btn-m3-outline:hover {
+    background-color: rgba(var(--md-sys-color-primary-rgb), 0.08) !important;
 }
+.btn-m3-text-danger {
+    background-color: transparent !important;
+    border: 1px solid var(--md-sys-color-error) !important;
+    color: var(--md-sys-color-error) !important;
+    border-radius: 20px !important;
+    font-weight: 500;
+    padding: 0.4rem 1rem;
+    font-size: 13px;
+    line-height: 1.5;
+    transition: background-color 0.2s ease;
+}
+.btn-m3-text-danger:hover {
+    background-color: rgba(242, 184, 181, 0.08) !important;
+}
+
+/* --- Stats Cards --- */
+.stats-card {
+    background-color: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 110px;
+}
+.stat-number { 
+    font-size: 1.75rem; 
+    font-weight: 500; 
+    color: var(--md-sys-color-primary); 
+}
+.stat-label { 
+    font-size: 0.75rem; 
+    color: var(--md-sys-color-on-surface-variant); 
+    text-transform: uppercase; 
+    letter-spacing: 0.8px; 
+    line-height: 1.4; 
+    margin: 0 auto; 
+}
+
+/* --- Table Styles --- */
 .table {
-    --bs-table-bg: var(--bg-secondary);
-    --bs-table-color: var(--text-primary);
-    --bs-table-border-color: var(--border-color);
-    --bs-table-hover-bg: var(--bg-tertiary);
-    --bs-table-striped-bg: var(--bg-tertiary);
-    --bs-table-striped-color: var(--text-primary);
+    --bs-table-bg: var(--md-sys-color-surface-container);
+    --bs-table-color: var(--md-sys-color-on-surface);
+    --bs-table-border-color: var(--md-sys-color-outline-variant);
+    --bs-table-hover-bg: var(--md-sys-color-surface-container-high);
+    --bs-table-hover-color: var(--md-sys-color-on-surface);
+    --bs-table-striped-bg: var(--md-sys-color-surface-container);
+    --bs-table-striped-color: var(--md-sys-color-on-surface);
     vertical-align: middle;
 }
-.table > :not(caption) > * > * {
-    padding: 0.6rem 0.6rem;
+.table > :not(caption) > * > * { padding: 0.75rem 0.75rem; }
+.status-cell { display: flex; align-items: center; gap: 8px; }
+.status-indicator { 
+    width: 8px; 
+    height: 8px; 
+    border-radius: 50%; 
+    flex-shrink: 0; 
 }
-.status-badge {
-    display: inline-block;
-    padding: 0.3em 0.7em;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: white;
-}
-.status-applied { background-color: #3b82f6; }
-.status-assessment { background-color: #f97316; }
-.status-interviewing { background-color: #8b5cf6; }
-.status-offer { background-color: #22c55e; }
-.status-rejected { background-color: #64748b; }
-.nav-tabs {
-    border-bottom: 1px solid var(--border-color) !important;
-}
-.nav-tabs .nav-link {
-    background-color: transparent;
-    border-color: transparent;
-    color: var(--text-secondary);
-    font-size: 14px;
-    padding: 0.5rem 1rem;
+.status-indicator.status-applied { background-color: #5d8eff; }
+.status-indicator.status-online-assessment { background-color: #f29e4c; }
+.status-indicator.status-interviewing { background-color: #f76f8e; }
+.status-indicator.status-offer { background-color: #54c184; }
+.status-indicator.status-rejected { background-color: #909da2; }
+
+/* --- Tab Styles --- */
+.nav-tabs { border-bottom: 1px solid var(--md-sys-color-outline-variant) !important; }
+.nav-tabs .nav-link { 
+    background: transparent; 
+    border: none; 
+    color: var(--md-sys-color-on-surface-variant); 
+    transition: all 0.2s ease;
 }
 .nav-tabs .nav-link.active {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    border-color: var(--border-color) !important;
-    border-bottom-color: var(--bg-secondary) !important;
+    color: var(--md-sys-color-primary) !important;
+    background-color: rgba(var(--md-sys-color-primary-rgb), 0.04) !important;
+    border-bottom: 2px solid var(--md-sys-color-primary) !important;
+    border-radius: 4px 4px 0 0 !important;
 }
-.nav-tabs .nav-link:hover {
-    color: var(--text-primary);
-    border-color: transparent;
+
+/* --- Filter/Search Row --- */
+.filter-search-row {
+    padding: 0 1rem;
+    margin: 1rem 0;
 }
-.tab-content {
-    background-color: var(--bg-secondary);
-    padding-top: 1.25rem;
+
+/* --- Filter Controls Small Size --- */
+.filter-controls .form-control,
+.filter-controls .form-select {
+    font-size: 12px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0.4rem 0.6rem !important;
+}
+
+.pagination-select {
+    font-size: 12px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0.2rem 0.4rem !important;
+}
+
+/* --- Table Spacing --- */
+.table-responsive {
+    margin-bottom: 0rem !important;
+}
+
+/* --- Pagination Styles --- */
+.pagination-select {
+    height: 24px !important;
+    min-height: 24px !important;
+    font-size: 0.875rem !important;
+    padding: 0 0.5rem !important;
+}
+.pagination-btn {
+    background-color: transparent !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    color: var(--md-sys-color-on-surface-variant) !important;
+    border-radius: 6px !important;
+    font-weight: 400 !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    min-width: 32px !important;
+}
+.pagination-btn:hover {
+    background-color: var(--md-sys-color-surface-container-high) !important;
+    border-color: var(--md-sys-color-outline) !important;
+}
+.pagination-btn-active {
+    background-color: var(--md-sys-color-surface-container-highest) !important;
+    border: 1px solid var(--md-sys-color-primary) !important;
+    color: var(--md-sys-color-primary) !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+}
+
+/* --- In-Table Controls --- */
+.table-dropdown {
+    font-size: 14px !important;
+    height: 34px !important;
+    width: 85% !important;
+    min-height: 34px !important;
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+}
+/* --- Form Textarea --- */
+.form-notes-textarea {
+    min-height: 80px !important;
+    max-height: 200px !important;
+    resize: vertical !important;
+    background-color: var(--md-sys-color-surface-container-highest) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    color: var(--md-sys-color-on-surface) !important;
+}
+.form-notes-textarea:focus {
+    box-shadow: 0 0 0 1px var(--md-sys-color-primary) !important;
+    border-color: var(--md-sys-color-primary) !important;
+}
+
+/* --- Modal Styling --- */
+.modal-content {
+    background-color: var(--md-sys-color-surface-container) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    border-radius: 12px !important;
+}
+
+.modal-header {
+    background-color: var(--md-sys-color-surface-container) !important;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant) !important;
+    color: var(--md-sys-color-on-surface) !important;
+}
+
+.modal-title {
+    color: var(--md-sys-color-on-surface) !important;
+}
+
+.modal-body {
+    background-color: var(--md-sys-color-surface-container) !important;
+    color: var(--md-sys-color-on-surface) !important;
+}
+
+.modal-footer {
+    background-color: var(--md-sys-color-surface-container) !important;
+    border-top: 1px solid var(--md-sys-color-outline-variant) !important;
+}
+
+/* --- Modal Textarea Resizable --- */
+.modal-body textarea {
+    max-height: 200px;
+    background-color: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* --- Toast Notification Styles --- */
+.toast {
+    background-color: rgba(33, 36, 41, 0.95) !important;
+    border: 1px solid var(--md-sys-color-outline-variant) !important;
+    color: var(--md-sys-color-on-surface) !important;
+    backdrop-filter: blur(8px) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+    min-width: 320px !important;
+    max-width: 400px !important;
+}
+
+.toast-header {
+    background-color: transparent !important;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant) !important;
+    color: var(--md-sys-color-on-surface) !important;
+}
+
+.toast-body {
+    color: var(--md-sys-color-on-surface) !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+}
+
+/* Success Toast */
+.toast.bg-success {
+    background-color: rgba(25, 135, 84, 0.95) !important;
+    border: 1px solid rgba(25, 135, 84, 0.3) !important;
+    color: white !important;
+}
+
+.toast.bg-success .toast-header {
+    color: white !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.toast.bg-success .toast-body {
+    color: white !important;
+}
+
+/* Error Toast */
+.toast.bg-danger {
+    background-color: rgba(220, 53, 69, 0.95) !important;
+    border: 1px solid rgba(220, 53, 69, 0.3) !important;
+    color: white !important;
+}
+
+.toast.bg-danger .toast-header {
+    color: white !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.toast.bg-danger .toast-body {
+    color: white !important;
+}
+
+/* Toast positioning */
+.toast-container {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 9999 !important;
 } 
