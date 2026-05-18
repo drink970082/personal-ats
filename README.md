@@ -1,175 +1,109 @@
-# ATS Dashboard Template - Refactored
+# ATS — Application Tracking System
 
-This is a refactored version of the ATS (Application Tracking System) dashboard template, organized into modular components and prepared for backend integration.
+A personal job-application tracker. Built with Next.js 14 (App Router), Prisma, and SQLite.
 
-## Project Structure
-
-```
-template/
-├── app.py                  # Original monolithic app (kept for reference)
-├── app_refactored.py       # New modular main app file
-├── requirements.txt        # Python dependencies
-├── README.md              # This file
-├── config/
-│   ├── __init__.py
-│   ├── constants.py       # Application constants (statuses, categories, etc.)
-│   └── styles.py          # CSS styling and themes
-├── utils/
-│   ├── __init__.py
-│   ├── data.py           # Data generation and manipulation utilities
-│   └── charts.py         # Chart generation functions
-├── components/
-│   ├── __init__.py
-│   ├── forms.py          # Form components (application form, modals)
-│   ├── table.py          # Table and pagination components
-│   └── charts.py         # Chart wrapper components
-└── callbacks/
-    ├── __init__.py
-    └── app_callbacks.py   # Placeholder for callback functions
-```
+The working app lives in [`ats-next/`](./ats-next). The shared SQLite database lives in [`db/applications.db`](./db) and is symlinked from `ats-next/prisma/applications.db`.
 
 ## Features
 
-### Current Implementation
-- **Modular Architecture**: Components are separated into logical modules
-- **Configuration Management**: Constants and styles are centralized
-- **Utility Functions**: Data and chart generation are in separate utilities
-- **Component-Based UI**: Reusable UI components for forms, tables, and charts
-- **Mock Data**: Realistic sample data for development and testing
+- Add, edit, and delete job applications
+- Track status transitions over time (status history with timestamps)
+- KPI cards: total applied, active, online assessment, interviewing, rejected, offer
+- Charts: status-flow Sankey, timeline heatmap, status funnel, category donut
+- Filter and search by status, historical status, category, company, or job title
+- Paginated application table with inline status editing
 
-### Dashboard Components
-1. **KPI Cards**: Applied, Active, Online Assessment, Interviewing, Rejected, Offered
-2. **Application Form**: Add new job applications with validation
-3. **Interactive Table**: View, edit, and manage applications with pagination
-4. **Charts**: Timeline heatmap, status flow Sankey, category donut chart
-5. **Status History**: Modal showing application progression over time
-6. **Filtering**: Search and filter applications by status and category
+## Stack
 
-## Installation & Setup
+- **Framework**: Next.js 14 (App Router, Server Actions)
+- **Database**: SQLite via Prisma 6
+- **UI**: React 18, Tailwind CSS 4, Radix UI primitives (shadcn-style), Recharts
+- **Forms**: react-hook-form + Zod
+- **Tests**: Jest + Testing Library
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Getting started
 
-2. **Run the Application**:
-   ```bash
-   # Original app
-   python app.py
-   
-   # Refactored app
-   python app_refactored.py
-   ```
-
-3. **Access the Dashboard**:
-   - Original: http://localhost:8050
-   - Refactored: http://localhost:8051
-
-## Backend Integration Guide
-
-This template is prepared for backend integration. Here's how to connect it to a real database:
-
-### 1. Database Layer
-Replace the mock data generation in `utils/data.py` with actual database operations:
-
-```python
-# Example database service
-class ApplicationService:
-    def get_all_applications(self):
-        # Replace with actual DB query
-        pass
-    
-    def create_application(self, app_data):
-        # Replace with actual DB insert
-        pass
-    
-    def update_application_status(self, app_id, status):
-        # Replace with actual DB update
-        pass
+```bash
+cd ats-next
+npm install
+npx prisma generate
+npm run dev
 ```
 
-### 2. API Layer
-Create API endpoints for CRUD operations:
+Open http://localhost:3000.
 
-```python
-# Example with Flask-RESTful or FastAPI
-@app.route('/api/applications', methods=['GET'])
-def get_applications():
-    # Return JSON data instead of mock data
-    pass
+If `db/applications.db` does not exist yet, create it with:
 
-@app.route('/api/applications', methods=['POST'])
-def create_application():
-    # Handle form submission
-    pass
+```bash
+npx prisma db push
 ```
 
-### 3. Callback Updates
-Update callbacks in `app_refactored.py` to use API calls instead of local data:
+## Scripts
 
-```python
-@app.callback(...)
-def add_application(...):
-    # Replace local data manipulation with API calls
-    response = requests.post('/api/applications', json=form_data)
-    return response.json()
+Run from `ats-next/`:
+
+| Command         | Description                       |
+| --------------- | --------------------------------- |
+| `npm run dev`   | Start the dev server              |
+| `npm run build` | Production build                  |
+| `npm start`     | Run the production build          |
+| `npm run lint`  | ESLint                            |
+| `npm test`      | Jest test suite                   |
+
+## Docker
+
+```bash
+cd ats-next
+docker build -t ats .
+docker run -p 3000:3000 -v $(pwd)/../db:/app/db ats
 ```
 
-### 4. Authentication
-Add user authentication and session management:
+The Dockerfile produces a standalone Next.js image. Mount the host `db/` directory so the SQLite file persists across container restarts.
 
-```python
-# Add to main app
-from flask_login import LoginManager, login_required
+## Project layout
 
-@app.callback(...)
-@login_required
-def protected_callback(...):
-    pass
+```
+ats/
+├── db/
+│   └── applications.db          # SQLite database (gitignored)
+└── ats-next/
+    ├── prisma/
+    │   ├── schema.prisma        # applications + status_history models
+    │   └── applications.db      # symlink → ../../db/applications.db
+    ├── src/
+    │   ├── app/                 # Next.js App Router entry
+    │   ├── components/          # Dashboard, table, charts, forms
+    │   │   └── ui/              # Radix-based primitives
+    │   ├── lib/
+    │   │   ├── actions.ts       # Server Actions (CRUD, aggregations)
+    │   │   ├── db.ts            # Prisma client
+    │   │   └── constants.ts     # statuses, categories
+    │   └── __tests__/           # Jest tests
+    └── Dockerfile
 ```
 
-## Design Patterns
+## Data model
 
-The template follows the design patterns specified in `design_pattern.md`:
+```prisma
+model applications {
+  id              Int
+  company_name    String
+  job_title       String
+  application_url String?
+  date_applied    String
+  category        String?
+  status          String
+  notes           String?
+  last_updated    String?
+  status_history  status_history[]
+}
 
-- **Database Schema**: Ready for SQLite/PostgreSQL with applications and status_history tables
-- **UI Components**: All required components (forms, tables, charts, modals)
-- **Status Management**: Proper status indicators with color coding
-- **Data Validation**: Form validation and duplicate prevention
-- **Interactive Features**: Status editing, history tracking, filtering
+model status_history {
+  id             Int
+  application_id Int
+  status         String
+  timestamp      String
+}
+```
 
-## Customization
-
-### Adding New Components
-1. Create new files in the `components/` directory
-2. Import and use in `app_refactored.py`
-3. Add any new constants to `config/constants.py`
-
-### Styling
-- Modify `config/styles.py` for CSS changes
-- Uses Material 3 dark theme with custom CSS variables
-- Bootstrap components for responsive layout
-
-### Data Fields
-- Update `config/constants.py` for new categories/statuses
-- Modify `utils/data.py` for new data fields
-- Update form components in `components/forms.py`
-
-## Development Notes
-
-- The refactored version maintains all functionality of the original
-- Mock data is still used for development/testing
-- Callbacks are partially implemented (core functionality only)
-- Ready for production deployment with minimal changes
-- Follows separation of concerns and single responsibility principles
-
-## Next Steps for Production
-
-1. **Complete Callback Migration**: Move all callbacks from `app.py` to `callbacks/app_callbacks.py`
-2. **Database Integration**: Replace mock data with real database operations
-3. **API Development**: Create RESTful API endpoints
-4. **Testing**: Add unit tests for components and utilities
-5. **Documentation**: Add detailed API documentation
-6. **Deployment**: Configure for production deployment (Docker, etc.)
-
-This refactored template provides a solid foundation for building a production-ready ATS dashboard with proper separation of concerns and maintainable code structure. 
+Deleting an application cascades to its status history.
