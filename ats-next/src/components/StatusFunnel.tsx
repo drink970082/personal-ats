@@ -9,13 +9,18 @@ interface StatusFunnelProps {
 const STATUS_COLORS: Record<string, string> = {
     'Applied': '#3b82f6',
     'Online Assessment': '#8b5cf6',
+    'Phone Screen': '#a78bfa',
     'Interviewing: 1st round': '#f59e0b',
     'Interviewing: 2nd round': '#eab308',
     'Interviewing: 3rd round': '#f97316',
     'Interviewing: 4th round': '#ea580c',
     'Interviewing: 5th round': '#dc2626',
+    'Final Round': '#d97706',
     'Rejected': '#ef4444',
     'Offer': '#10b981',
+    'Accepted': '#059669',
+    'Withdrew': '#64748b',
+    'Ghosted': '#94a3b8',
     'No Response': '#9ca3af',
 }
 
@@ -41,16 +46,19 @@ export function StatusFunnel({ data }: StatusFunnelProps) {
         // Define stage order for funnel
         const stageOrder = [
             'Online Assessment',
+            'Phone Screen',
             'Interviewing: 1st round',
             'Interviewing: 2nd round',
             'Interviewing: 3rd round',
             'Interviewing: 4th round',
             'Interviewing: 5th round',
+            'Final Round',
             'Offer',
+            'Accepted',
         ]
 
         // Terminal statuses shown separately
-        const terminalStatuses = ['No Response', 'Rejected']
+        const terminalStatuses = ['No Response', 'Rejected', 'Withdrew', 'Ghosted']
 
         const stages: { name: string; count: number; color: string; isTerminal: boolean }[] = []
 

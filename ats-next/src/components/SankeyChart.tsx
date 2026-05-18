@@ -9,13 +9,18 @@ interface SankeyChartProps {
 const STATUS_COLORS: Record<string, string> = {
     'Applied': '#3b82f6',
     'Online Assessment': '#8b5cf6',
+    'Phone Screen': '#a78bfa',
     'Interviewing: 1st round': '#f59e0b',
     'Interviewing: 2nd round': '#eab308',
     'Interviewing: 3rd round': '#f97316',
     'Interviewing: 4th round': '#ea580c',
     'Interviewing: 5th round': '#dc2626',
+    'Final Round': '#d97706',
     'Rejected': '#ef4444',
     'Offer': '#10b981',
+    'Accepted': '#059669',
+    'Withdrew': '#64748b',
+    'Ghosted': '#94a3b8',
     'No Response': '#9ca3af',
 }
 
@@ -23,14 +28,19 @@ const STATUS_COLORS: Record<string, string> = {
 const STAGE_ORDER: string[] = [
     'Applied',
     'Online Assessment',
+    'Phone Screen',
     'No Response',
     'Interviewing: 1st round',
     'Interviewing: 2nd round',
     'Interviewing: 3rd round',
     'Interviewing: 4th round',
     'Interviewing: 5th round',
+    'Final Round',
     'Rejected',
+    'Withdrew',
+    'Ghosted',
     'Offer',
+    'Accepted',
 ]
 
 function getColor(name: string): string {
@@ -228,11 +238,13 @@ export function SankeyChart({ data }: SankeyChartProps) {
                     // Smart short names
                     const SHORT_NAMES: Record<string, string> = {
                         'Online Assessment': 'Online Assessment',
+                        'Phone Screen': 'Phone Screen',
                         'Interviewing: 1st round': 'Interview: 1st',
                         'Interviewing: 2nd round': 'Interview: 2nd',
                         'Interviewing: 3rd round': 'Interview: 3rd',
                         'Interviewing: 4th round': 'Interview: 4th',
                         'Interviewing: 5th round': 'Interview: 5th',
+                        'Final Round': 'Final Round',
                         'No Response': 'No Response',
                     }
                     const shortName = SHORT_NAMES[name] || name

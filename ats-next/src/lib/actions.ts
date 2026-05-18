@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
-import { STATUSES } from '@/lib/constants'
+import { STATUSES, CATEGORIES } from '@/lib/constants'
 
 export async function getApplications(params: {
     page?: number
@@ -97,7 +97,14 @@ export async function addApplication(data: {
 
 export async function updateApplicationDetails(
     id: number,
-    data: { company_name: string; job_title: string; category: string }
+    data: {
+        company_name: string
+        job_title: string
+        category: string
+        application_url?: string
+        date_applied?: string
+        notes?: string
+    }
 ) {
     try {
         await prisma.applications.update({
@@ -106,6 +113,10 @@ export async function updateApplicationDetails(
                 company_name: data.company_name,
                 job_title: data.job_title,
                 category: data.category,
+                application_url: data.application_url ?? undefined,
+                date_applied: data.date_applied ?? undefined,
+                notes: data.notes ?? undefined,
+                last_updated: new Date().toISOString(),
             },
         })
         return { success: true }
@@ -157,7 +168,7 @@ export async function getKPIs() {
     const apps = await prisma.applications.findMany()
 
     const stats = {
-        applied: 0,   // TOTAL count
+        applied: 0,
         active: 0,
         assessment: 0,
         interviewing: 0,
@@ -165,19 +176,22 @@ export async function getKPIs() {
         offer: 0,
     }
 
-    // "Applied" = total number of applications (per design_pattern.md)
     stats.applied = apps.length
+
+    let withdrew = 0
+    let ghosted = 0
 
     for (const app of apps) {
         const status = app.status.toLowerCase()
         if (status === 'online assessment') stats.assessment += 1
-        else if (status.includes('interviewing')) stats.interviewing += 1
+        else if (status === 'phone screen' || status.includes('interviewing') || status === 'final round') stats.interviewing += 1
         else if (status === 'rejected') stats.rejected += 1
-        else if (status === 'offer') stats.offer += 1
+        else if (status === 'offer' || status === 'accepted') stats.offer += 1
+        else if (status === 'withdrew') withdrew += 1
+        else if (status === 'ghosted') ghosted += 1
     }
 
-    // Active = Total - Rejected - Offer
-    stats.active = apps.length - stats.rejected - stats.offer
+    stats.active = apps.length - stats.rejected - stats.offer - withdrew - ghosted
 
     return stats
 }
@@ -337,5 +351,176 @@ export async function getCategoryData() {
         return { success: true, data }
     } catch (error: any) {
         return { success: false, error: error.message, data: [] }
+    }
+}
+
+const CSV_COLUMNS = [
+    'company_name',
+    'job_title',
+    'application_url',
+    'date_applied',
+    'category',
+    'status',
+    'notes',
+    'last_updated',
+] as const
+
+function csvEscape(value: string | null | undefined): string {
+    if (value === null || value === undefined) return ''
+    const s = String(value)
+    if (/[",\r\n]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`
+    }
+    return s
+}
+
+function parseCSV(text: string): string[][] {
+    const rows: string[][] = []
+    let row: string[] = []
+    let field = ''
+    let inQuotes = false
+    let i = 0
+    while (i < text.length) {
+        const ch = text[i]
+        if (inQuotes) {
+            if (ch === '"') {
+                if (text[i + 1] === '"') {
+                    field += '"'
+                    i += 2
+                    continue
+                }
+                inQuotes = false
+                i++
+                continue
+            }
+            field += ch
+            i++
+            continue
+        }
+        if (ch === '"') {
+            inQuotes = true
+            i++
+            continue
+        }
+        if (ch === ',') {
+            row.push(field)
+            field = ''
+            i++
+            continue
+        }
+        if (ch === '\r') {
+            i++
+            continue
+        }
+        if (ch === '\n') {
+            row.push(field)
+            rows.push(row)
+            row = []
+            field = ''
+            i++
+            continue
+        }
+        field += ch
+        i++
+    }
+    if (field.length > 0 || row.length > 0) {
+        row.push(field)
+        rows.push(row)
+    }
+    return rows.filter((r) => r.length > 0 && !(r.length === 1 && r[0] === ''))
+}
+
+export async function exportApplicationsCSV() {
+    try {
+        const apps = await prisma.applications.findMany({
+            orderBy: { date_applied: 'desc' },
+        })
+
+        const header = CSV_COLUMNS.join(',')
+        const lines = apps.map((app) =>
+            CSV_COLUMNS.map((col) => csvEscape((app as any)[col])).join(',')
+        )
+
+        const csv = [header, ...lines].join('\n') + '\n'
+        return { success: true, csv, count: apps.length }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+export async function importApplicationsCSV(csvText: string) {
+    try {
+        const rows = parseCSV(csvText)
+        if (rows.length === 0) {
+            return { success: false, error: 'CSV is empty' }
+        }
+
+        const header = rows[0].map((h) => h.trim())
+        const dataRows = rows.slice(1)
+
+        const required = ['company_name', 'job_title', 'date_applied']
+        for (const r of required) {
+            if (!header.includes(r)) {
+                return { success: false, error: `Missing required column: ${r}` }
+            }
+        }
+
+        const colIndex = (name: string) => header.indexOf(name)
+        const statusSet = new Set<string>(STATUSES as readonly string[])
+        const categorySet = new Set<string>(CATEGORIES as readonly string[])
+
+        let added = 0
+        let skipped = 0
+        const errors: string[] = []
+
+        for (let i = 0; i < dataRows.length; i++) {
+            const row = dataRows[i]
+            const rowNum = i + 2
+
+            const get = (col: string) => {
+                const idx = colIndex(col)
+                return idx === -1 ? '' : (row[idx] ?? '').trim()
+            }
+
+            const company_name = get('company_name')
+            const job_title = get('job_title')
+            const date_applied = get('date_applied')
+
+            if (!company_name || !job_title || !date_applied) {
+                errors.push(`Row ${rowNum}: missing required field`)
+                continue
+            }
+
+            const existing = await prisma.applications.findFirst({
+                where: { company_name, job_title },
+            })
+            if (existing) {
+                skipped++
+                continue
+            }
+
+            const rawStatus = get('status') || 'Applied'
+            const status = statusSet.has(rawStatus) ? rawStatus : 'Applied'
+            const rawCategory = get('category') || 'Others'
+            const category = categorySet.has(rawCategory) ? rawCategory : 'Others'
+
+            await prisma.applications.create({
+                data: {
+                    company_name,
+                    job_title,
+                    date_applied,
+                    category,
+                    status,
+                    application_url: get('application_url') || '',
+                    notes: get('notes') || '',
+                    last_updated: new Date().toISOString(),
+                },
+            })
+            added++
+        }
+
+        return { success: true, added, skipped, errors }
+    } catch (error: any) {
+        return { success: false, error: error.message }
     }
 }

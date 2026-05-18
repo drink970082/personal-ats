@@ -23,6 +23,9 @@ interface StatusHistoryModalProps {
         company_name: string
         job_title: string
         category: string
+        application_url?: string | null
+        date_applied?: string
+        notes?: string | null
     }
     history: Array<{
         id: number
@@ -32,7 +35,17 @@ interface StatusHistoryModalProps {
     }>
     onAddStatus: (data: { status: string; notes: string; date: string }) => void
     onDeleteHistory: (id: number) => void
-    onEditApplication: (id: number, data: { company_name: string; job_title: string; category: string }) => Promise<void>
+    onEditApplication: (
+        id: number,
+        data: {
+            company_name: string
+            job_title: string
+            category: string
+            application_url: string
+            date_applied: string
+            notes: string
+        }
+    ) => Promise<void>
 }
 
 export function StatusHistoryModal({
@@ -49,6 +62,9 @@ export function StatusHistoryModal({
         company_name: application.company_name,
         job_title: application.job_title,
         category: application.category || '',
+        application_url: application.application_url || '',
+        date_applied: application.date_applied || '',
+        notes: application.notes || '',
     })
     const [newStatus, setNewStatus] = useState<string>(STATUSES[0])
     const [newNotes, setNewNotes] = useState('')
@@ -74,6 +90,9 @@ export function StatusHistoryModal({
             company_name: application.company_name,
             job_title: application.job_title,
             category: application.category || '',
+            application_url: application.application_url || '',
+            date_applied: application.date_applied || '',
+            notes: application.notes || '',
         })
         setIsEditing(false)
     }
@@ -92,11 +111,32 @@ export function StatusHistoryModal({
                 placeholder="Job Title"
                 className="h-8"
             />
+            <div className="grid grid-cols-2 gap-2">
+                <Input
+                    value={editForm.category}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
+                    placeholder="Category"
+                    className="h-8"
+                />
+                <Input
+                    type="date"
+                    value={editForm.date_applied}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, date_applied: e.target.value }))}
+                    className="h-8"
+                />
+            </div>
             <Input
-                value={editForm.category}
-                onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value }))}
-                placeholder="Category"
+                value={editForm.application_url}
+                onChange={(e) => setEditForm(prev => ({ ...prev, application_url: e.target.value }))}
+                placeholder="https://..."
                 className="h-8"
+            />
+            <Textarea
+                value={editForm.notes}
+                onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Notes..."
+                className="text-sm"
+                rows={2}
             />
             <div className="flex gap-2">
                 <Button size="sm" onClick={handleSaveEdit}>Save</Button>

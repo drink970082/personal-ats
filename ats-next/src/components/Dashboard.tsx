@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
     getApplications,
     addApplication,
@@ -14,6 +14,8 @@ import {
     getTimelineData,
     getCategoryData,
     updateApplicationDetails,
+    exportApplicationsCSV,
+    importApplicationsCSV,
 } from '@/lib/actions'
 import { ApplicationTable } from './ApplicationTable'
 import { KPIGrid } from './KPIGrid'
@@ -23,6 +25,8 @@ import { StatusFunnel } from './StatusFunnel'
 import { TimelineHeatmap } from './TimelineHeatmap'
 import { CategoryDonut } from './CategoryDonut'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface DashboardProps {
@@ -55,6 +59,7 @@ export function Dashboard({
     const [selectedApp, setSelectedApp] = useState<any>(null)
     const [historyData, setHistoryData] = useState<any[]>([])
     const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const refreshData = async () => {
         const { data, total } = await getApplications({ page, size: 10, ...filters })
@@ -161,7 +166,17 @@ export function Dashboard({
         }
     }
 
-    const handleEditApplication = async (id: number, data: { company_name: string; job_title: string; category: string }) => {
+    const handleEditApplication = async (
+        id: number,
+        data: {
+            company_name: string
+            job_title: string
+            category: string
+            application_url: string
+            date_applied: string
+            notes: string
+        }
+    ) => {
         const result = await updateApplicationDetails(id, data)
         if (result.success) {
             toast.success('Application updated')
@@ -172,11 +187,71 @@ export function Dashboard({
         }
     }
 
+    const handleExportCSV = async () => {
+        const result = await exportApplicationsCSV()
+        if (!result.success || !result.csv) {
+            toast.error(result.error || 'Export failed')
+            return
+        }
+        const blob = new Blob([result.csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `applications-${new Date().toISOString().split('T')[0]}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        toast.success(`Exported ${result.count} application${result.count === 1 ? '' : 's'}`)
+    }
+
+    const handleImportCSV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+
+        const text = await file.text()
+        const result = await importApplicationsCSV(text)
+        if (!result.success) {
+            toast.error(result.error || 'Import failed')
+            return
+        }
+
+        const added = result.added ?? 0
+        const skipped = result.skipped ?? 0
+        const errors = result.errors ?? []
+        const parts = [`${added} added`]
+        if (skipped > 0) parts.push(`${skipped} skipped`)
+        if (errors.length > 0) parts.push(`${errors.length} error${errors.length === 1 ? '' : 's'}`)
+        toast.success(`Import complete: ${parts.join(', ')}`)
+        if (errors.length > 0) {
+            console.warn('CSV import errors:', errors)
+        }
+        refreshData()
+    }
+
     return (
         <div className="space-y-6">
             {/* Header + KPIs */}
             <div>
-                <h1 className="text-2xl font-bold tracking-tight mb-3">Application Tracker</h1>
+                <div className="flex items-center justify-between mb-3 gap-3">
+                    <h1 className="text-2xl font-bold tracking-tight">Application Tracker</h1>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                            <Download className="mr-2 h-4 w-4" /> Export CSV
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="mr-2 h-4 w-4" /> Import CSV
+                        </Button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv,text/csv"
+                            onChange={handleImportCSV}
+                            className="hidden"
+                        />
+                    </div>
+                </div>
                 <KPIGrid stats={kpis} />
             </div>
 
