@@ -41,28 +41,33 @@ export function CategoryDonut({ data }: CategoryDonutProps) {
     }
 
     return (
-        <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-                <Pie
-                    data={data}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={110}
-                    paddingAngle={3}
-                    dataKey="value"
-                    nameKey="name"
-                    stroke="none"
-                >
-                    {data.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                    wrapperStyle={{ fontSize: '12px' }}
-                />
-            </PieChart>
-        </ResponsiveContainer>
+        <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                        data={data}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={55}
+                        outerRadius={95}
+                        paddingAngle={3}
+                        dataKey="value"
+                        nameKey="name"
+                        stroke="none"
+                        isAnimationActive={false}
+                    >
+                        {data.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend
+                        verticalAlign="bottom"
+                        height={36}
+                        wrapperStyle={{ fontSize: '12px' }}
+                    />
+                </PieChart>
+            </ResponsiveContainer>
+        </div>
     )
 }

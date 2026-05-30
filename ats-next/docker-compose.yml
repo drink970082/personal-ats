@@ -1,0 +1,19 @@
+services:
+  ats:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Match the host user that owns ../db/applications.db so the
+        # bind-mounted sqlite file is writable from inside the container.
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: ats-next:local
+    container_name: ats-next
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount the host sqlite db over the path Prisma expects
+      # (schema.prisma uses `file:./applications.db` relative to /app/prisma).
+      - ../db/applications.db:/app/prisma/applications.db
+    restart: unless-stopped

@@ -24,6 +24,7 @@ import { StatusHistoryModal } from './StatusHistoryModal'
 import { StatusFunnel } from './StatusFunnel'
 import { TimelineHeatmap } from './TimelineHeatmap'
 import { CategoryDonut } from './CategoryDonut'
+import { SankeyChart } from './SankeyChart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Download, Upload } from 'lucide-react'
@@ -312,6 +313,15 @@ export function Dashboard({
                 </CardHeader>
                 <CardContent>
                     <StatusFunnel data={statusFlow} />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Status Flow</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <SankeyChart data={statusFlow} />
                 </CardContent>
             </Card>
 

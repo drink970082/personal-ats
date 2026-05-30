@@ -6,22 +6,35 @@ interface SankeyChartProps {
     data: { from: string; to: string; value: number }[]
 }
 
-const STATUS_COLORS: Record<string, string> = {
-    'Applied': '#3b82f6',
-    'Online Assessment': '#8b5cf6',
-    'Phone Screen': '#a78bfa',
-    'Interviewing: 1st round': '#f59e0b',
-    'Interviewing: 2nd round': '#eab308',
-    'Interviewing: 3rd round': '#f97316',
-    'Interviewing: 4th round': '#ea580c',
-    'Interviewing: 5th round': '#dc2626',
-    'Final Round': '#d97706',
-    'Rejected': '#ef4444',
-    'Offer': '#10b981',
-    'Accepted': '#059669',
-    'Withdrew': '#64748b',
-    'Ghosted': '#94a3b8',
-    'No Response': '#9ca3af',
+// Muted, low-saturation palette — every hue sits around L≈62% S≈22% so they read
+// as quiet variants of the same family rather than competing accents.
+const TONE = {
+    slate:    'rgb(148, 163, 184)', // neutral / default
+    sky:      'rgb(140, 165, 184)', // start (Applied)
+    indigo:   'rgb(151, 145, 184)', // assessments / screens
+    amber:    'rgb(184, 165, 130)', // interviewing
+    gold:     'rgb(184, 156, 110)', // final round
+    emerald:  'rgb(140, 178, 152)', // offer / accepted
+    rose:     'rgb(184, 145, 145)', // rejected
+    stone:    'rgb(168, 160, 150)', // withdrew / ghosted / no-response
+}
+
+const STATUS_TONE: Record<string, keyof typeof TONE> = {
+    'Applied': 'sky',
+    'Online Assessment': 'indigo',
+    'Phone Screen': 'indigo',
+    'Interviewing: 1st round': 'amber',
+    'Interviewing: 2nd round': 'amber',
+    'Interviewing: 3rd round': 'amber',
+    'Interviewing: 4th round': 'amber',
+    'Interviewing: 5th round': 'amber',
+    'Final Round': 'gold',
+    'Offer': 'emerald',
+    'Accepted': 'emerald',
+    'Rejected': 'rose',
+    'Withdrew': 'stone',
+    'Ghosted': 'stone',
+    'No Response': 'stone',
 }
 
 // Order determines column position — earlier stages first
@@ -44,7 +57,7 @@ const STAGE_ORDER: string[] = [
 ]
 
 function getColor(name: string): string {
-    return STATUS_COLORS[name] || '#6b7280'
+    return TONE[STATUS_TONE[name] ?? 'slate']
 }
 
 function getNodeColumn(name: string, allNodes: Set<string>, data: { from: string; to: string }[]): number {
@@ -223,7 +236,7 @@ export function SankeyChart({ data }: SankeyChartProps) {
                         key={i}
                         d={link.path}
                         fill={link.color}
-                        opacity={hoveredLink === i ? 0.6 : 0.15}
+                        opacity={hoveredLink === i ? 0.45 : 0.14}
                         style={{ cursor: 'pointer', transition: 'opacity 0.15s' }}
                         onMouseEnter={() => setHoveredLink(i)}
                         onMouseLeave={() => setHoveredLink(null)}
@@ -235,43 +248,50 @@ export function SankeyChart({ data }: SankeyChartProps) {
                 {/* Nodes */}
                 {Array.from(nodePositions.entries()).map(([name, pos]) => {
                     const color = getColor(name)
-                    // Smart short names
                     const SHORT_NAMES: Record<string, string> = {
-                        'Online Assessment': 'Online Assessment',
-                        'Phone Screen': 'Phone Screen',
                         'Interviewing: 1st round': 'Interview: 1st',
                         'Interviewing: 2nd round': 'Interview: 2nd',
                         'Interviewing: 3rd round': 'Interview: 3rd',
                         'Interviewing: 4th round': 'Interview: 4th',
                         'Interviewing: 5th round': 'Interview: 5th',
-                        'Final Round': 'Final Round',
-                        'No Response': 'No Response',
                     }
                     const shortName = SHORT_NAMES[name] || name
                     return (
                         <g key={name}>
-                            <rect x={pos.x} y={pos.y} width={pos.w} height={pos.h} rx={4} fill={color} opacity={0.9}>
+                            <rect
+                                x={pos.x}
+                                y={pos.y}
+                                width={pos.w}
+                                height={pos.h}
+                                rx={3}
+                                fill={color}
+                                fillOpacity={0.18}
+                                stroke={color}
+                                strokeOpacity={0.7}
+                                strokeWidth={1}
+                            >
                                 <title>{name}: {pos.value}</title>
                             </rect>
                             <text
-                                x={pos.x + pos.w / 2}
-                                y={pos.y + pos.h / 2 - 6}
-                                textAnchor="middle"
+                                x={pos.x + 10}
+                                y={pos.y + pos.h / 2}
                                 dominantBaseline="central"
-                                fill="white"
+                                fill="rgba(226, 232, 240, 0.85)"
                                 fontSize={11}
-                                fontWeight={500}
+                                fontWeight={400}
+                                letterSpacing={0.2}
                             >
                                 {shortName}
                             </text>
                             <text
-                                x={pos.x + pos.w / 2}
-                                y={pos.y + pos.h / 2 + 8}
-                                textAnchor="middle"
+                                x={pos.x + pos.w - 10}
+                                y={pos.y + pos.h / 2}
+                                textAnchor="end"
                                 dominantBaseline="central"
-                                fill="rgba(255,255,255,0.8)"
-                                fontSize={11}
-                                fontWeight={700}
+                                fill="rgba(148, 163, 184, 0.7)"
+                                fontSize={10}
+                                fontWeight={400}
+                                fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                             >
                                 {pos.value}
                             </text>
@@ -285,11 +305,12 @@ export function SankeyChart({ data }: SankeyChartProps) {
                         x={svgWidth / 2}
                         y={svgHeight - 4}
                         textAnchor="middle"
-                        fill="#6b7280"
-                        fontSize={11}
-                        fontWeight={500}
+                        fill="rgba(148, 163, 184, 0.7)"
+                        fontSize={10}
+                        fontWeight={400}
+                        letterSpacing={0.3}
                     >
-                        {links[hoveredLink].from} → {links[hoveredLink].to}: {links[hoveredLink].value}
+                        {links[hoveredLink].from} → {links[hoveredLink].to} · {links[hoveredLink].value}
                     </text>
                 )}
             </svg>
