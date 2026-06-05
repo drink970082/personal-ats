@@ -1,6 +1,6 @@
 # ATS — Application Tracking System
 
-[![CI](https://github.com/cw555/ats/actions/workflows/ci.yml/badge.svg)](https://github.com/cw555/ats/actions/workflows/ci.yml)
+[![CI](https://github.com/drink970082/personal-ats/actions/workflows/ci.yml/badge.svg)](https://github.com/drink970082/personal-ats/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A self-hosted job-application tracker built with **Next.js 14**, **Prisma**, and **SQLite**. Keep every application, every status transition, and every interview round in one place — then look at it visually instead of scrolling a spreadsheet.

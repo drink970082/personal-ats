@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  web:
+    name: Web (Next.js / Jest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ats-next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ats-next/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm test
+
+  worker:
+    name: Worker (Python / pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ats-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # The worker suite is fully dependency-injected, so it needs none of the
+      # heavy runtime deps (anthropic / pypdf / apscheduler / tectonic).
+      - run: pip install pytest requests PyYAML
+      - run: python -m pytest
