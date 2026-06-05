@@ -1,19 +1,55 @@
 services:
   ats:
     build:
-      context: .
+      context: ./ats-next
       dockerfile: Dockerfile
       args:
-        # Match the host user that owns ../db/applications.db so the
-        # bind-mounted sqlite file is writable from inside the container.
+        # Match the host user that owns ./db and ./resumes so bind-mount writes
+        # work without chmod 777.
         UID: ${UID:-1000}
         GID: ${GID:-1000}
     image: ats-next:local
     container_name: ats-next
     ports:
       - "3000:3000"
+    environment:
+      # Absolute path on the DIRECTORY-mounted shared volume. A directory mount
+      # (not a single-file mount) is REQUIRED so SQLite's WAL -wal/-shm sidecars
+      # created by the worker are visible here — otherwise cross-container WAL
+      # silently breaks and reads/writes can diverge.
+      DATABASE_URL: "file:/data/applications.db"
+      # Tailored PDFs the worker writes; served by /api/resume/[id].
+      RESUME_DIR: "/resumes"
     volumes:
-      # Mount the host sqlite db over the path Prisma expects
-      # (schema.prisma uses `file:./applications.db` relative to /app/prisma).
-      - ../db/applications.db:/app/prisma/applications.db
+      - ./db:/data            # shared SQLite directory (db + WAL sidecars)
+      - ./resumes:/resumes:ro # web app only reads the PDFs
+    restart: unless-stopped
+
+  ats-worker:
+    build:
+      context: ./ats-worker
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: ats-worker:local
+    container_name: ats-worker
+    environment:
+      # Read via os.environ by run.py's argparse defaults.
+      DB_PATH: "/data/applications.db"
+      RESUME_DIR: "/resumes"
+    extra_hosts:
+      # Required on Linux/Compose for the worker to reach Ollama running on the
+      # HOST (which owns the GPU). On Docker Desktop this is implicit, but being
+      # explicit makes it work everywhere. The .env's OLLAMA_HOST should be
+      # http://host.docker.internal:11434.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./db:/data                               # SAME shared db directory (co-write)
+      - ./resumes:/resumes                       # worker WRITES tailored PDFs here
+      - ./ats-worker/config.yaml:/app/config.yaml:ro
+      - ./ats-worker/.env:/app/.env:ro           # secrets + OLLAMA_HOST
+      - ./ats-worker/resume:/app/resume:ro       # master.tex + resume.txt
+    depends_on:
+      - ats
     restart: unless-stopped

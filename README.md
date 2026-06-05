@@ -1,5 +1,8 @@
 # ATS — Application Tracking System
 
+[![CI](https://github.com/cw555/ats/actions/workflows/ci.yml/badge.svg)](https://github.com/cw555/ats/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 A self-hosted job-application tracker built with **Next.js 14**, **Prisma**, and **SQLite**. Keep every application, every status transition, and every interview round in one place — then look at it visually instead of scrolling a spreadsheet.
 
 <p align="center">
@@ -7,6 +10,14 @@ A self-hosted job-application tracker built with **Next.js 14**, **Prisma**, and
 </p>
 
 The working app lives in [`ats-next/`](./ats-next). The SQLite database lives in [`db/applications.db`](./db) and is symlinked from `ats-next/prisma/applications.db` so it can be bind-mounted by the container.
+
+> **New: semi-automated job-hunt pipeline.** A separate Python worker
+> ([`ats-worker/`](./ats-worker)) sits *in front* of the tracker — it scans
+> company ATS boards, scores each posting against your resume with a local LLM,
+> auto-tailors a one-page resume for the best matches, and pings you on Telegram.
+> You review/apply by hand, then one-click "Mark Applied" turns a posting into a
+> tracked application. See [**docs/SETUP.md**](./docs/SETUP.md) for the full setup
+> and [`docs/pipeline-design.md`](./docs/pipeline-design.md) for the design.
 
 ---
 
@@ -59,6 +70,26 @@ Reconstructs the actual transitions per application from the `status_history` ta
 
 Click the clock icon on any row to open a modal showing every status this application has been in, with timestamps. From the modal you can edit application metadata, add a new status transition, or delete a past history entry.
 
+### Discovered Jobs (semi-automated pipeline)
+
+A second tab next to **Applications**. The [`ats-worker/`](./ats-worker) worker
+populates a `job_postings` table on a schedule; the UI is where you triage it:
+
+- **Scored queue** — postings sorted by an LLM match score (0–100), filterable by
+  min-score, pipeline status, and free-text search.
+- **JD + score detail dialog** — full job description plus the model's
+  matched / missing keywords and reasoning.
+- **Tailored resume per job** — download the auto-generated one-page PDF; a badge
+  warns if it spilled past one page.
+- **One-click "Mark Applied"** — after you apply by hand, this creates a tracked
+  application (carrying company / title / URL) and links it back to the posting,
+  so it flows straight into every chart above.
+
+The pipeline: **fetch** (Greenhouse / Lever / Ashby public APIs) → **score**
+(local Ollama, GPU) → **tailor** (Claude + `tectonic` → single-page PDF) →
+**notify** (Telegram). Investing nothing in auto-apply — a human is always in the
+loop. Full walkthrough in [**docs/SETUP.md**](./docs/SETUP.md).
+
 ### Mobile / responsive
 
 <p align="center">
@@ -79,8 +110,9 @@ Everything stacks vertically below ~640px. Table remains scrollable; charts shri
 | UI          | React 18, Tailwind CSS 4, Radix UI primitives (shadcn-style)      |
 | Charts      | Recharts (donut) + hand-rolled SVG (heatmap, funnel, Sankey)      |
 | Forms       | react-hook-form + Zod                                             |
-| Tests       | Jest + Testing Library + jest-mock-extended                       |
+| Tests       | Jest + Testing Library + jest-mock-extended (web); pytest (worker) |
 | Container   | Alpine multi-stage build, runs as non-root with UID/GID arg       |
+| **Pipeline**| Python 3.11 worker: APScheduler, Greenhouse/Lever/Ashby APIs, Ollama (scoring), Claude + `tectonic` (resume tailoring), Telegram (alerts) |
 
 ---
 
@@ -105,16 +137,25 @@ npx prisma db push
 
 ### Docker (recommended for "just run it")
 
-The container does **not** ship with a database — the host's `db/applications.db` is bind-mounted so your data survives image rebuilds and lives where you can back it up.
+The container does **not** ship with a database — the host's `db/` directory is bind-mounted so your data survives image rebuilds and lives where you can back it up.
+
+The root [`docker-compose.yml`](./docker-compose.yml) defines **two** services: `ats` (web) and `ats-worker` (the pipeline). Run everything **from the repo root**. To start **only the web app**:
 
 ```bash
-cd ats-next
-docker compose up --build -d
+UID=$(id -u) GID=$(id -g) docker compose up ats --build -d
 ```
 
-That starts the app on http://localhost:3000 with `../db/applications.db` mounted into the container.
+That starts the app on http://localhost:3000 with the host `db/` directory mounted at `/data`.
 
-Or without compose:
+To run the **full pipeline too**, first create the worker's config + secrets (otherwise the worker's `.env` mount fails) — see [**docs/SETUP.md**](./docs/SETUP.md) — then:
+
+```bash
+UID=$(id -u) GID=$(id -g) docker compose up --build -d
+```
+
+Or with the `Makefile`: `make up`.
+
+Or the web app without compose:
 
 ```bash
 docker build \
@@ -123,21 +164,23 @@ docker build \
   -t ats-next:local ats-next
 
 docker run -d --name ats-next -p 3000:3000 \
-  -v "$PWD/db/applications.db:/app/prisma/applications.db" \
+  -e DATABASE_URL="file:/data/applications.db" \
+  -v "$PWD/db:/data" \
   ats-next:local
 ```
 
-The `UID`/`GID` build args make the container user own the bind-mounted SQLite file, so writes from inside the container work without `chmod 777`.
+> **Note:** the database is mounted as a **directory** (`db/` → `/data`), not a single file. This is required so SQLite's WAL `-wal`/`-shm` sidecar files are shared between the web and worker containers; a single-file mount silently breaks cross-process WAL. The `UID`/`GID` build args make the container user own the bind-mounted files so writes work without `chmod 777`.
 
 ---
 
 ## Configuration
 
-There are no environment variables to set for normal use. A few things to know:
+The **web app** needs one environment variable; the **pipeline worker** needs a few (see [docs/SETUP.md](./docs/SETUP.md)). Things to know:
 
-- **Database path** — `prisma/schema.prisma` uses `file:./applications.db`, resolved relative to the schema directory. In the container that path is `/app/prisma/applications.db`; the bind mount lands the host file exactly there.
+- **`DATABASE_URL`** — the Prisma datasource is now `env("DATABASE_URL")`. Locally it's set in [`ats-next/.env`](./ats-next/.env) to `file:./applications.db` (resolves to the `prisma/applications.db` symlink). In Docker, `docker-compose.yml` overrides it to an absolute path on the shared volume (`file:/data/applications.db`). This indirection is what lets the same schema serve both local dev and the directory-mounted container db.
 - **Time zone** — the heatmap uses the server's local "today" as its reference. If you deploy on a server in a different TZ from where you live, set `TZ` on the container.
 - **Static / dynamic** — the root page is marked `export const dynamic = 'force-dynamic'` so it always reads from the live database; there is no stale-cache problem.
+- **Worker secrets** — `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `OLLAMA_HOST` live in `ats-worker/.env` (gitignored). See [docs/SETUP.md](./docs/SETUP.md).
 
 ---
 
@@ -164,9 +207,35 @@ model status_history {
   timestamp      String
   applications   applications @relation(fields: [application_id], references: [id], onDelete: Cascade)
 }
+
+// Populated by the ats-worker pipeline; triaged in the Discovered Jobs tab.
+model job_postings {
+  id              Int           @id @default(autoincrement())
+  source          String        // greenhouse | lever | ashby
+  external_id     String        // board's job id
+  company_name    String
+  job_title       String
+  location        String?
+  job_url         String
+  description     String        // full JD (fed to the LLM)
+  score           Int?          // 0–100, from Ollama
+  score_detail    String?       // JSON: { matched, missing, reasoning }
+  resume_tex      String?       // tailored LaTeX source
+  resume_path     String?       // tailored PDF path on the shared volume
+  resume_pages    Int?          // page count after compile (1 = good)
+  pipeline_status String        @default("new") // new|scored|tailored|notified|applied|discarded|failed
+  pipeline_error  String?       // last error when status='failed'
+  attempts        Int           @default(0)
+  application_id  Int?          // back-link once marked applied
+  application     applications? @relation(fields: [application_id], references: [id], onDelete: SetNull)
+  created_at      String
+  updated_at      String?
+
+  @@unique([source, external_id]) // dedup key
+}
 ```
 
-Deleting an application cascades to its status history. Dates are stored as ISO strings (`YYYY-MM-DD`) for sortability and timezone-independence.
+Deleting an application cascades to its status history. A `job_postings` row is deduped on `(source, external_id)` and advances through its `pipeline_status` state machine. Dates are stored as ISO strings (`YYYY-MM-DD`) for sortability and timezone-independence.
 
 ### Statuses (in funnel order)
 
@@ -186,42 +255,60 @@ Both lists live in [`src/lib/constants.ts`](./ats-next/src/lib/constants.ts) —
 
 ```
 ats/
-├── db/
-│   └── applications.db              # SQLite database (gitignored)
+├── README.md  LICENSE  CONTRIBUTING.md  CHANGELOG.md  .editorconfig
+├── Makefile                         # unified install/dev/test/up entry points
+├── docker-compose.yml               # orchestrates BOTH services (run from root)
+├── .github/workflows/ci.yml         # runs Jest + pytest on push / PR
 ├── docs/
+│   ├── SETUP.md                     # full end-to-end environment setup guide
+│   ├── pipeline-design.md           # pipeline design doc
 │   └── images/                      # README screenshots (tracked)
-└── ats-next/
-    ├── prisma/
-    │   ├── schema.prisma            # applications + status_history models
-    │   └── applications.db          # symlink → ../../db/applications.db
-    ├── src/
-    │   ├── app/
-    │   │   ├── layout.tsx           # root layout + theme provider
-    │   │   ├── page.tsx             # dashboard entry; SSR + force-dynamic
-    │   │   └── globals.css
-    │   ├── components/
-    │   │   ├── Dashboard.tsx        # client-side state + handlers
-    │   │   ├── KPIGrid.tsx          # status chip strip
-    │   │   ├── ApplicationTable.tsx # filterable, paginated table
-    │   │   ├── AddApplicationForm.tsx
-    │   │   ├── StatusHistoryModal.tsx
-    │   │   ├── TimelineHeatmap.tsx  # hand-rolled SVG
-    │   │   ├── CategoryDonut.tsx    # recharts
-    │   │   ├── StatusFunnel.tsx     # hand-rolled SVG
-    │   │   ├── SankeyChart.tsx      # hand-rolled SVG
-    │   │   ├── ThemeProvider.tsx
-    │   │   ├── ui/                  # Radix-based primitives (shadcn-style)
-    │   │   └── __tests__/           # component tests
-    │   ├── lib/
-    │   │   ├── actions.ts           # Server Actions (CRUD + aggregations + CSV)
-    │   │   ├── db.ts                # Prisma client singleton
-    │   │   ├── constants.ts         # statuses, categories, status→color
-    │   │   └── utils.ts             # cn() and small helpers
-    │   └── __tests__/
-    │       └── actions.test.ts      # server-action tests
-    ├── Dockerfile                   # multi-stage standalone build
-    ├── docker-compose.yml           # local deploy with mounted db
-    └── jest.config.ts
+├── db/
+│   └── applications.db              # shared SQLite database (gitignored)
+├── resumes/                         # tailored PDF output volume (gitignored)
+│
+├── ats-next/                        # ── Next.js web app ──
+│   ├── .env                         # DATABASE_URL for local dev
+│   ├── prisma/
+│   │   ├── schema.prisma            # applications + status_history + job_postings
+│   │   └── applications.db          # symlink → ../../db/applications.db
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx             # dashboard entry; SSR + force-dynamic
+│   │   │   └── api/resume/[id]/route.ts  # streams tailored PDFs (only API route)
+│   │   ├── components/
+│   │   │   ├── Dashboard.tsx        # Applications ↔ Discovered Jobs tabs
+│   │   │   ├── ApplicationTable.tsx
+│   │   │   ├── DiscoveredJobsTable.tsx    # the scored pipeline queue
+│   │   │   ├── JobDetailModal.tsx         # JD + score-detail dialog
+│   │   │   ├── StatusHistoryModal.tsx
+│   │   │   ├── KPIGrid.tsx / TimelineHeatmap.tsx / CategoryDonut.tsx
+│   │   │   ├── StatusFunnel.tsx / SankeyChart.tsx / AddApplicationForm.tsx
+│   │   │   ├── ui/                  # Radix-based primitives (shadcn-style)
+│   │   │   └── __tests__/           # component tests
+│   │   ├── lib/
+│   │   │   ├── actions.ts           # Server Actions (+ getJobPostings/markJobApplied/discard)
+│   │   │   ├── db.ts                # Prisma client singleton
+│   │   │   └── constants.ts / utils.ts
+│   │   └── __tests__/actions.test.ts
+│   ├── e2e/                         # Playwright browser verification + screenshots
+│   └── Dockerfile
+│
+└── ats-worker/                      # ── Python pipeline worker ──
+    ├── config.yaml                  # company list + filters + thresholds (you edit)
+    ├── .env.example                 # → copy to .env (API keys, Telegram, Ollama)
+    ├── resume/                      # master.tex + resume.txt (you provide, gitignored)
+    ├── ats_worker/
+    │   ├── fetch/{greenhouse,lever,ashby}.py  # board adapters → unified dict
+    │   ├── config.py                # load/validate config.yaml
+    │   ├── db.py                    # SQLite: WAL pragmas, dedup upsert, state writes
+    │   ├── score.py                 # Ollama scoring (local, GPU)
+    │   ├── tailor.py                # Claude + tectonic single-page loop
+    │   ├── notify.py                # Telegram alert + PDF
+    │   ├── pipeline.py              # fetch→score→tailor→notify state machine
+    │   └── run.py                   # APScheduler entrypoint (--once for a test pass)
+    ├── tests/                       # pytest (fully mocked; no network needed)
+    └── Dockerfile                   # python:3.11-slim + tectonic (bundle prewarmed)
 ```
 
 ---
@@ -235,8 +322,15 @@ npm test
 
 The suite covers:
 
-- Server actions in `src/lib/actions.ts` — CRUD on applications, status history, KPI aggregations, CSV import/export, with Prisma mocked via `jest-mock-extended`
-- Component behaviour on the table, the add form, and the status history modal
+- Server actions in `src/lib/actions.ts` — CRUD on applications, status history, KPI aggregations, CSV import/export, plus the discovered-jobs actions (`getJobPostings` / `markJobApplied` / `discardJobPosting`), with Prisma mocked via `jest-mock-extended`
+- Component behaviour on the tables, the add form, and the modals
+
+The **pipeline worker** has its own test suite (no network / Ollama / Claude / tectonic needed — everything is dependency-injected):
+
+```bash
+cd ats-worker
+python -m pytest          # fetch adapters, dedup/WAL db layer, scoring, single-page tailor loop, pipeline state machine
+```
 
 ---
 
@@ -256,7 +350,8 @@ Run from `ats-next/`:
 
 ## Notes & design choices
 
-- **Server Actions, not REST.** All mutations go through Next.js Server Actions in `src/lib/actions.ts`. There is no `/api` directory.
+- **Server Actions, not REST.** All mutations go through Next.js Server Actions in `src/lib/actions.ts`. The single exception is `GET /api/resume/[id]`, which streams a tailored PDF (binary file responses don't fit the Server Action model).
+- **Two processes, one database.** The web app and the Python worker co-write `db/applications.db`. SQLite WAL + `busy_timeout` make this safe; the worker writes `job_postings`, the app mostly reads them and writes `applications`. The schema is owned solely by Prisma — the worker issues no DDL.
 - **One Prisma client.** `src/lib/db.ts` exports a process-singleton so Next.js's dev hot-reload doesn't leak connections.
 - **Charts are mostly hand-rolled SVG.** The heatmap, funnel, and Sankey are written directly so they look exactly right on dark backgrounds without per-chart-library theming. Only the category donut uses Recharts.
 - **The Sankey palette is desaturated on purpose.** Each stage gets a tone (sky / indigo / amber / gold / emerald / rose / stone / slate) at low saturation so the flow geometry leads, not the colour.
