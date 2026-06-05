@@ -48,6 +48,122 @@ export async function getApplications(params: {
     return { data, total }
 }
 
+// Pipeline statuses that make up the actionable "discovered jobs" queue.
+const ACTIONABLE_PIPELINE_STATUSES = ['scored', 'tailored', 'notified'] as const
+
+export async function getJobPostings(params: {
+    minScore?: number
+    status?: string
+    search?: string
+}) {
+    const minScore = params.minScore
+    const search = params.search || ''
+
+    // Default: show only the actionable queue (scored/tailored/notified).
+    // An explicit status filters to that one status; 'all' removes the filter.
+    let statusFilter: Prisma.job_postingsWhereInput = {}
+    if (params.status === 'all') {
+        statusFilter = {}
+    } else if (params.status) {
+        statusFilter = { pipeline_status: params.status }
+    } else {
+        statusFilter = { pipeline_status: { in: [...ACTIONABLE_PIPELINE_STATUSES] } }
+    }
+
+    const where: Prisma.job_postingsWhereInput = {
+        AND: [
+            statusFilter,
+            minScore !== undefined && minScore !== null ? { score: { gte: minScore } } : {},
+            search
+                ? {
+                    OR: [
+                        { company_name: { contains: search } },
+                        { job_title: { contains: search } },
+                    ],
+                }
+                : {},
+        ],
+    }
+
+    const [data, total] = await Promise.all([
+        prisma.job_postings.findMany({
+            where,
+            orderBy: [{ score: 'desc' }, { id: 'asc' }],
+        }),
+        prisma.job_postings.count({ where }),
+    ])
+
+    return { data, total }
+}
+
+export async function discardJobPosting(id: number) {
+    try {
+        await prisma.job_postings.update({
+            where: { id },
+            data: { pipeline_status: 'discarded', updated_at: new Date().toISOString() },
+        })
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+export async function markJobApplied(id: number) {
+    try {
+        const posting = await prisma.job_postings.findUnique({ where: { id } })
+        if (!posting) {
+            return { success: false, error: 'Job posting not found' }
+        }
+
+        const today = new Date().toISOString().split('T')[0]
+
+        // Create the application and backfill the job_postings link atomically so we
+        // can never end up with an application that has no back-link (or vice versa).
+        const result = await prisma.$transaction(async (tx) => {
+            const existing = await tx.applications.findFirst({
+                where: {
+                    company_name: posting.company_name,
+                    job_title: posting.job_title,
+                },
+            })
+            if (existing) {
+                // Throw to roll back the transaction; surfaced as a failure below.
+                throw new Error(
+                    `Application for ${posting.company_name} - ${posting.job_title} already exists`
+                )
+            }
+
+            const newApp = await tx.applications.create({
+                data: {
+                    company_name: posting.company_name,
+                    job_title: posting.job_title,
+                    application_url: posting.job_url || '',
+                    date_applied: today,
+                    category: 'Others',
+                    status: 'Applied',
+                    notes: '',
+                    last_updated: new Date().toISOString(),
+                },
+            })
+
+            await tx.job_postings.update({
+                where: { id },
+                data: {
+                    pipeline_status: 'applied',
+                    application_id: newApp.id,
+                    updated_at: new Date().toISOString(),
+                },
+            })
+
+            return newApp
+        })
+
+        return { success: true, data: result }
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
 export async function addApplication(data: {
     company_name: string
     job_title: string

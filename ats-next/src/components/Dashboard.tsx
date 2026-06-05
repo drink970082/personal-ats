@@ -16,8 +16,13 @@ import {
     updateApplicationDetails,
     exportApplicationsCSV,
     importApplicationsCSV,
+    getJobPostings,
+    markJobApplied,
+    discardJobPosting,
 } from '@/lib/actions'
 import { ApplicationTable } from './ApplicationTable'
+import { DiscoveredJobsTable } from './DiscoveredJobsTable'
+import { JobDetailModal } from './JobDetailModal'
 import { KPIGrid } from './KPIGrid'
 import { AddApplicationForm } from './AddApplicationForm'
 import { StatusHistoryModal } from './StatusHistoryModal'
@@ -37,6 +42,8 @@ interface DashboardProps {
     initialStatusFlow: any[]
     initialTimeline: any[]
     initialCategories: any[]
+    initialJobPostings?: any[]
+    totalJobPostings?: number
 }
 
 export function Dashboard({
@@ -46,7 +53,17 @@ export function Dashboard({
     initialStatusFlow,
     initialTimeline,
     initialCategories,
+    initialJobPostings = [],
+    totalJobPostings = 0,
 }: DashboardProps) {
+    const [activeTab, setActiveTab] = useState<'applications' | 'discovered'>('applications')
+
+    // Discovered Jobs state
+    const [jobPostings, setJobPostings] = useState<any[]>(initialJobPostings)
+    const [totalJobs, setTotalJobs] = useState(totalJobPostings)
+    const [jobFilters, setJobFilters] = useState<any>({})
+    const [selectedJob, setSelectedJob] = useState<any>(null)
+    const [isJobDetailOpen, setIsJobDetailOpen] = useState(false)
     const [apps, setApps] = useState(initialApps)
     const [kpis, setKpis] = useState(initialKpis)
     const [total, setTotal] = useState(totalApps)
@@ -231,6 +248,52 @@ export function Dashboard({
         refreshData()
     }
 
+    const refreshJobPostings = async (filters = jobFilters) => {
+        const { data, total } = await getJobPostings(filters)
+        setJobPostings(data)
+        setTotalJobs(total)
+    }
+
+    const handleJobFilterChange = async (newFilters: any) => {
+        setJobFilters(newFilters)
+        const { data, total } = await getJobPostings(newFilters)
+        setJobPostings(data)
+        setTotalJobs(total)
+    }
+
+    const handleViewJD = (id: number) => {
+        const job = jobPostings.find((j: any) => j.id === id)
+        if (job) {
+            setSelectedJob(job)
+            setIsJobDetailOpen(true)
+        }
+    }
+
+    const handleMarkApplied = async (id: number) => {
+        const result = await markJobApplied(id)
+        if (result.success) {
+            toast.success('Marked as applied')
+            setIsJobDetailOpen(false)
+            setSelectedJob(null)
+            await refreshJobPostings()
+            await refreshData()
+        } else {
+            toast.error(result.error)
+        }
+    }
+
+    const handleDiscardJob = async (id: number) => {
+        const result = await discardJobPosting(id)
+        if (result.success) {
+            toast.success('Job discarded')
+            setIsJobDetailOpen(false)
+            setSelectedJob(null)
+            await refreshJobPostings()
+        } else {
+            toast.error(result.error)
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Header + KPIs */}
@@ -256,6 +319,55 @@ export function Dashboard({
                 <KPIGrid stats={kpis} />
             </div>
 
+            {/* Tab toggle */}
+            <div className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('applications')}
+                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'applications'
+                            ? 'bg-background shadow-sm text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                    Applications
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('discovered')}
+                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === 'discovered'
+                            ? 'bg-background shadow-sm text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                >
+                    Discovered Jobs
+                    {totalJobs > 0 && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px] bg-primary text-primary-foreground">
+                            {totalJobs}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {activeTab === 'discovered' ? (
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-lg">Discovered Jobs</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <DiscoveredJobsTable
+                            data={jobPostings}
+                            total={totalJobs}
+                            onFilterChange={handleJobFilterChange}
+                            onMarkApplied={handleMarkApplied}
+                            onDiscard={handleDiscardJob}
+                            onViewJD={handleViewJD}
+                        />
+                    </CardContent>
+                </Card>
+            ) : (
+            <>
             {/* Form (4) + Table (8) side by side */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Add Application Form */}
@@ -324,6 +436,22 @@ export function Dashboard({
                     <SankeyChart data={statusFlow} />
                 </CardContent>
             </Card>
+            </>
+            )}
+
+            {/* Job Detail Modal */}
+            {selectedJob && (
+                <JobDetailModal
+                    isOpen={isJobDetailOpen}
+                    onClose={() => {
+                        setIsJobDetailOpen(false)
+                        setSelectedJob(null)
+                    }}
+                    job={selectedJob}
+                    onMarkApplied={handleMarkApplied}
+                    onDiscard={handleDiscardJob}
+                />
+            )}
 
             {/* History Modal */}
             {selectedApp && (

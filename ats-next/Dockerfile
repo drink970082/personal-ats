@@ -15,6 +15,10 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# The datasource is env("DATABASE_URL"); `prisma generate` validates that the
+# var resolves, so provide a build-time value. The RUNTIME value is supplied by
+# docker-compose (an absolute path on the shared volume) and takes precedence.
+ENV DATABASE_URL="file:./applications.db"
 RUN npx prisma generate
 RUN npm run build
 
@@ -48,6 +52,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# The schema's datasource is `file:./applications.db` resolved relative to
-# /app/prisma, so mount the host db file to /app/prisma/applications.db.
+# DATABASE_URL is injected at runtime by docker-compose, pointing at the
+# directory-mounted shared volume (file:/data/applications.db) so WAL co-writing
+# with the Python worker is safe. See docker-compose.yml.
 CMD ["node", "server.js"]

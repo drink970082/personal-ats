@@ -4,7 +4,14 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./applications.db"
+  // Configurable so the same schema works in two places:
+  //   - local dev / Prisma CLI: `file:./applications.db` (see .env) → the
+  //     prisma/applications.db symlink to ../db/applications.db.
+  //   - Docker: an absolute path on a DIRECTORY-mounted volume shared with the
+  //     Python worker, e.g. `file:/data/applications.db`. The directory mount
+  //     (not a single-file mount) is REQUIRED so SQLite's WAL -wal/-shm sidecar
+  //     files are visible to both processes; otherwise cross-container WAL breaks.
+  url      = env("DATABASE_URL")
 }
 
 model applications {
@@ -18,6 +25,33 @@ model applications {
   notes           String?
   last_updated    String?
   status_history  status_history[]
+  job_postings    job_postings[]
+}
+
+model job_postings {
+  id              Int           @id @default(autoincrement())
+  source          String // greenhouse | lever | ashby
+  external_id     String // id returned by the board
+  company_name    String
+  job_title       String
+  location        String?
+  job_url         String
+  description     String // full JD text (fed to the LLM)
+  score           Int? // 0-100, produced by Ollama
+  score_detail    String? // JSON: { matched_keywords:[], missing_keywords:[], reasoning } (worker output)
+  resume_tex      String? // tailored LaTeX source
+  resume_path     String? // tailored PDF path on the shared volume (absolute; both containers mount it at the same path)
+  resume_pages    Int? // page count after compilation (single page = 1)
+  pipeline_status String        @default("new") // new|scored|tailored|notified|applied|discarded|failed
+  pipeline_error  String? // last error message when pipeline_status='failed'
+  attempts        Int           @default(0) // processing attempts (recorded on failure; auto-retry not yet implemented)
+  application_id  Int? // back-link once marked applied
+  application     applications? @relation(fields: [application_id], references: [id], onDelete: SetNull)
+  created_at      String
+  updated_at      String?
+
+  @@unique([source, external_id]) // dedup key
+  @@index([pipeline_status])
 }
 
 model status_history {
