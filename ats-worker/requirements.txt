@@ -1,0 +1,5 @@
+requests>=2.31
+anthropic>=0.40
+apscheduler>=3.10
+pypdf>=4.0
+PyYAML>=6.0

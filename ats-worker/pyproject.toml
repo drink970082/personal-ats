@@ -1,0 +1,13 @@
+[project]
+name = "ats-worker"
+version = "0.1.0"
+description = "Semi-automated job-hunt pipeline worker for personal-ats"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["ats_worker*"]

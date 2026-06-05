@@ -1,0 +1,28 @@
+{
+  "jobs": [
+    {
+      "id": "9a8b7c6d-1234-5678-9012-abcdefabcdef",
+      "title": "Machine Learning Engineer",
+      "location": "Remote",
+      "isRemote": true,
+      "department": "AI",
+      "team": "Research",
+      "employmentType": "FullTime",
+      "jobUrl": "https://jobs.ashbyhq.com/acme/9a8b7c6d-1234-5678-9012-abcdefabcdef",
+      "applyUrl": "https://jobs.ashbyhq.com/acme/9a8b7c6d-1234-5678-9012-abcdefabcdef/application",
+      "descriptionHtml": "<p>Train models. Experience with <b>PyTorch</b> required.</p>",
+      "descriptionPlain": "Train models. Experience with PyTorch required."
+    },
+    {
+      "id": "00001111-2222-3333-4444-555566667777",
+      "title": "Recruiter",
+      "location": "London, UK",
+      "isRemote": false,
+      "department": "People",
+      "employmentType": "FullTime",
+      "jobUrl": "https://jobs.ashbyhq.com/acme/00001111-2222-3333-4444-555566667777",
+      "descriptionHtml": "<p>Hire great people.</p>",
+      "descriptionPlain": "Hire great people."
+    }
+  ]
+}

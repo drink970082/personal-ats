@@ -1,0 +1,21 @@
+{
+  "jobs": [
+    {
+      "id": 4012345,
+      "title": "Senior Software Engineer, Backend",
+      "updated_at": "2026-05-30T10:00:00-04:00",
+      "location": { "name": "San Francisco, CA" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4012345",
+      "content": "&lt;p&gt;We are hiring a &lt;strong&gt;backend engineer&lt;/strong&gt;.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Python &amp;amp; Go&lt;/li&gt;&lt;li&gt;Distributed systems&lt;/li&gt;&lt;/ul&gt;"
+    },
+    {
+      "id": 4012999,
+      "title": "Office Manager",
+      "updated_at": "2026-05-29T10:00:00-04:00",
+      "location": { "name": "New York, NY" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4012999",
+      "content": "&lt;p&gt;Keep the office running.&lt;/p&gt;"
+    }
+  ],
+  "meta": { "total": 2 }
+}

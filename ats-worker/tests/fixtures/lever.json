@@ -1,0 +1,22 @@
+[
+  {
+    "id": "f7a1c2d3-0000-4444-8888-aaaabbbbcccc",
+    "text": "Software Engineer, Platform",
+    "categories": { "location": "Remote - US", "team": "Engineering", "commitment": "Full-time" },
+    "hostedUrl": "https://jobs.lever.co/acme/f7a1c2d3-0000-4444-8888-aaaabbbbcccc",
+    "applyUrl": "https://jobs.lever.co/acme/f7a1c2d3-0000-4444-8888-aaaabbbbcccc/apply",
+    "descriptionPlain": "Build the platform. You will work with Python and Kubernetes.",
+    "description": "<div>Build the platform.</div>",
+    "lists": [
+      { "text": "Requirements", "content": "<li>5+ years experience</li>" }
+    ]
+  },
+  {
+    "id": "11112222-3333-4444-5555-666677778888",
+    "text": "Sales Development Representative",
+    "categories": { "location": "Austin, TX", "team": "Sales", "commitment": "Full-time" },
+    "hostedUrl": "https://jobs.lever.co/acme/11112222-3333-4444-5555-666677778888",
+    "descriptionPlain": "Drive revenue and book meetings.",
+    "lists": []
+  }
+]
