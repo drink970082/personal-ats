@@ -1,8 +1,9 @@
 # Contributing
 
-Thanks for taking a look. This is a small two-package monorepo:
+Thanks for taking a look. This repo holds two cooperating services that share
+one SQLite database:
 
-| Package        | What it is                          | Stack                          |
+| Service        | What it is                          | Stack                          |
 | -------------- | ----------------------------------- | ------------------------------ |
 | [`ats-next/`](./ats-next)     | The web app (tracker + dashboard)   | Next.js 14, Prisma, SQLite     |
 | [`ats-worker/`](./ats-worker) | The semi-automated pipeline worker  | Python 3.11, pytest            |

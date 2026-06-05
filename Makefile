@@ -1,4 +1,4 @@
-# Unified entry points for the ATS monorepo (web app + pipeline worker).
+# Entry points for the ATS repo (web app + pipeline worker).
 # Thin wrappers over the per-package commands — no new tooling required.
 
 .DEFAULT_GOAL := help
