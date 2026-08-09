@@ -2561,6 +2561,26 @@ wrap all of this — see §[13](#13-testing-and-quality) and `make help`.
   a loosened ignore rule, or a pre-existing commit. Path deny-list only (no content
   scan); `--self-test` asserts the allow/deny regexes still discriminate, and CI runs
   both.
+- **Golden fit corpus rebuild — four tools, no `make` target, human-gated in the
+  middle.** `tools/expand_golden.py` builds the sampling frame; `tools/label_run.py`
+  labels it blind on a backend (ids only, so no prior label can reach the prompt);
+  `tools/build_review_sheet.py` renders `eval/golden_review.html`, routing backend
+  disagreements plus a seeded audit sample of the consensus rows into a review queue;
+  `eval/review_server.py` serves it on 127.0.0.1 and autosaves verdicts to
+  `eval/golden_review_answers.json`; `tools/fold_review.py` folds those answers back into
+  `eval/golden.jsonl` as rows carrying an inline `posting` payload.
+  **The payload is the anti-rot mechanism** — `score_eval._cols_for` prefers the live DB
+  row and falls back to it, so a label survives its posting leaving the board. Storing
+  only an id is what left 22 of 93 rows unreachable.
+  **Only human answers are labels by default.** `fold_review.py --consensus` will fold
+  the rows both backends agreed on, stamped `label_source: "backend-consensus"`, but a
+  corpus built from the scorer's own verdicts measures agreement rather than correctness,
+  so a genuinely better challenger scores as a regression against it. A human answer
+  always wins on the same id. Rejected rows leave the corpus, half-answered rows are
+  reported by id rather than having the missing verdict guessed, answers for ids outside
+  the labelling run are ignored, and an unreachable row is dropped unless
+  `--keep-unreachable` says to gate on it. `hard`/`marked` survive a re-fold. Dry-run
+  until `--write`, which backs the old corpus up and refuses to write an empty one.
 - **Shadow fit extraction — tooling only, gates nothing yet.** `score/extract.py` plus
   `tools/extract_shadow.py` and `tools/pick_frame.py` implement steps 0–2 of the fit
   rebuild ([`superpowers/plans/2026-08-03-fit-scoring-rebuild.md`](./superpowers/plans/2026-08-03-fit-scoring-rebuild.md)):
