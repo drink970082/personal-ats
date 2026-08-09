@@ -7,6 +7,29 @@ system is described in [`docs/SPEC.md`](./docs/SPEC.md).
 
 ## [Unreleased]
 
+### Added
+
+- **`tools/fold_review.py`, so the reviewed answers reach the corpus.** `review_server.py`
+  collected verdicts into `golden_review_answers.json` and nothing read them; this is that
+  reader. Each answered row becomes a `golden.jsonl` row carrying an inline `posting`
+  payload, which is what makes the rebuilt corpus self-contained — storing only an id is
+  how the last one decayed to 22 unreachable rows of 93.
+  **A human answer is the only thing it treats as a label by default.** Two-backend
+  consensus is a machine verdict, and a corpus built from the scorer's own verdicts
+  measures agreement rather than correctness — a genuinely better challenger scores as a
+  regression against it. `--consensus` folds those rows in for anyone who wants the larger
+  set, stamped `label_source: "backend-consensus"` so the two populations stay separable
+  afterwards, and a human answer always wins on the same id.
+  **Four drop rules, each reported rather than silent.** A row marked *drop from corpus*
+  leaves it; a half-answered row is listed by id instead of having its missing verdict
+  guessed (writing a guess would score it as ground truth); an answer for an id outside
+  the labelling run is ignored, since the operator's earlier answers were written while the
+  profile and title filters were mid-edit; and a row reachable in neither the DB nor an
+  existing inline payload is dropped, `--keep-unreachable` keeping it so the gate fails on
+  it instead. `hard` and `marked` survive a re-fold — they are hand-set policy flags, not
+  verdicts. Dry-run by default; `--write` backs the old corpus up first and refuses to
+  write an empty one.
+
 ### Changed
 
 - **The docs state current state only; completion history moves to git.** `PROGRESS.md`

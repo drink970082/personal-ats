@@ -39,15 +39,15 @@ For *what the system currently does*, read SPEC §4 (goals), §5 (workflow), and
 
 ## In flight
 
-- **The fit-scoring rebuild, steps 0-2 — `feat/fit-extraction-shadow`, cut from `main`
-  2026-08-03** `[SCORE · L]`. Plan:
+- **The fit-scoring rebuild — steps 0-2 are on `main`, and it stops at step 3**
+  `[SCORE · L · needs an operator decision, not code]`. Plan:
   [`superpowers/plans/2026-08-03-fit-scoring-rebuild.md`](./superpowers/plans/2026-08-03-fit-scoring-rebuild.md).
   Its locked order is **0** freeze + hash the inputs · **1** the extraction schema, shadow
   only · **2** the fresh frame · **3** run both model families · **4** human labelling ·
   **5** cut development/held-out · **6** settle the arithmetic on development data · **7**
   verify on held-out and cut over Stage 2 + gate + web in ONE move · **8** model
   downgrade, 2B arbiter, notification cap.
-  **Steps 0-2 are on the branch.** A `fit_profile` config block (20 concepts, declared
+  **What steps 0-2 shipped.** A `fit_profile` config block (20 concepts, declared
   priority tiers), four provenance hashes split by what each change actually invalidates,
   the bounded-extraction prompt + schema + validation + quote verification, a
   `tools/extract_shadow.py` runner, and a 250-row stratified frame at
@@ -65,20 +65,19 @@ For *what the system currently does*, read SPEC §4 (goals), §5 (workflow), and
   scored 52-58 that opened it are a *labelling* problem and are out of scope (none
   survives as `match/match` under either relabel arm), and `feat/golden-relabel` is not in
   this order — its `domain` output depreciates under a schema that deletes the enum.
-  **TWO FINDINGS from the step 0-2 audit, both written up at the top of the plan.**
-  (1) **RESOLVED 2026-08-04, after being diagnosed wrong twice: the tier-1/2 evidence was
-  thin because of WHICH rows got scored, not because the postings are missing.** The
-  retracted claim ("the DB holds 2 priority-1 rows") was a regex artifact measured against
-  the 502 fit-scored rows and reported as the whole DB — those 502 are ~97%
-  non-trading-firm. What is true: **1,197 postings sit at prop/HFT/market-making/hedge-fund
-  employers and exactly 30 ever got a paid fit call**; ~700 were correctly discarded on
-  geography, and **345 are still `new`, never processed.** Fixed by re-picking rather than
-  re-gathering — `pick_frame.py --oversample` reserves a live-rows-only `target_employer`
-  stratum, and the 2026-08-04 frame draws 75 (62 US/remote, 63 never scored) out of the
-  same 250 slots. The dominance threshold was always answerable here (a choice among 5
-  lattice values, not a continuous estimate).
-  (2) **RESOLVED as deferred (operator, 2026-08-03): a third input category — annotations
-  on the candidate's own evidence — has no declared home.** The extractor correctly never
+  **TWO CONSTRAINTS from the step 0-2 audit, both written up at the top of the plan.**
+  (1) **A class that looks missing from the corpus is usually a processing gap, not a
+  population gap — check both before gathering more data.** **1,197 postings sit at
+  prop/HFT/market-making/hedge-fund employers and exactly 30 ever got a paid fit call**;
+  ~700 were correctly discarded on geography, and **345 are still `new`, never
+  processed.** Any tier-coverage figure computed over the ~502 fit-scored rows is a
+  regex artifact of that population, which is ~97% non-trading-firm. The fix is
+  re-picking, not re-gathering: `pick_frame.py --oversample` reserves a live-rows-only
+  `target_employer` stratum and draws 75 (62 US/remote, 63 never scored) out of the same
+  250 slots. The dominance threshold is answerable here — a choice among 5 lattice
+  values, not a continuous estimate.
+  (2) **A third input category — annotations on the candidate's own evidence — has no
+  declared home, and the operator has deferred it to the cutover.** The extractor never
   reads `personal_profile.txt`, but its CAVEATS lines are downward correctors on the
   *résumé* side, and a quote check catches invention, not over-claim. **Do not "fix" this
   by routing the CAVEATS section to the extractor** — that routes by container, and
@@ -87,8 +86,8 @@ For *what the system currently does*, read SPEC §4 (goals), §5 (workflow), and
   at the cutover; step 3's pilot measures whether it bites at all.
 
 
-- **Generalized detail hydration — the fetch layer's teaser problem — IN PROGRESS
-  2026-08-07** `[FETCH · L · branch `feat/fetch-detail-hydration`, cut from `main`]`.
+- **Generalized detail hydration — the code is on `main`, the backfill is not run**
+  `[FETCH · L · what remains is operator decisions, not code]`.
   Plan: `~/.claude/plans/build-a-comprehensive-plan-majestic-grove.md` (operator-local).
   **The gap:** the fit scorer's whole job is reading a JD, and on **1,615 of 11,675 rows
   (14%)** it reads a 250-850 char teaser; 665 of those already bought a paid fit call on
@@ -115,19 +114,26 @@ For *what the system currently does*, read SPEC §4 (goals), §5 (workflow), and
      teaser. The backfill deliberately leaves `score`/`score_detail`/`pipeline_status` alone —
      re-scoring costs quota, and quota is the standing priority. Nothing recomputes until
      someone says so.
-  3. **Merge.** Not merged; branch is `feat/fetch-detail-hydration`, cut from `main`.
 
 - **The golden fit corpus is being rebuilt, and it is blocked on human review**
   `[SCORE · M · blocks the `eval-score` gate; the tools are on `main`]`.
-  The blind labeler and the sheet generator exist (`tools/label_run.py`,
-  `tools/build_review_sheet.py`). **Phase 5 does not** — folding reviewed answers back
-  into `golden.jsonl` with inline posting payloads is unbuilt, so nothing consumes
-  `eval/golden_review_answers.json` today.
+  The whole pipeline exists — `tools/label_run.py` (blind labeler),
+  `tools/build_review_sheet.py` (the sheet), `tools/fold_review.py` (the fold back into
+  `golden.jsonl`). **The only thing missing is human answers.**
   **Where the review stands:** the 287 *reachable* rows of `golden_expanded.jsonl` are
-  labelled blind on both backends (574 calls, 0 errors). 203 consensus rows are accepted
-  without review; the queue is **84 rows — 59 disagreements plus 25 seeded audit rows**
-  drawn from the consensus set. **24 answered, 60 open.** Serve the sheet with
+  labelled blind on both backends (574 calls, 0 errors). 203 consensus rows need no
+  review; the queue is **84 rows — 59 disagreements plus 25 seeded audit rows** drawn
+  from the consensus set. Serve the sheet with
   `python3 apps/worker/eval/review_server.py` (binds 127.0.0.1:8765 only; autosaves).
+  **`fold_review.py` is a dry run until `--write`**, and it prints what it would build,
+  so the current answer count is one command away rather than a number this file has to
+  chase. It writes only ids the human answered; `--consensus` folds the machine-agreed
+  rows too, stamped `label_source: "backend-consensus"`, because **a corpus built from
+  the scorer's own verdicts measures agreement, not correctness** — a genuinely better
+  challenger scores as a regression against it. Rejected rows leave the corpus,
+  half-answered rows are reported rather than guessed, and a row reachable in neither the
+  DB nor an existing inline payload is dropped (`--keep-unreachable` to gate on it
+  instead).
   **Consensus is not truth**, which is what the audit sample is for — row 25206 (UPS,
   generic enterprise app support, labelled `match`) is the standing example of both
   backends agreeing and both being wrong.
